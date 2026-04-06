@@ -1,6 +1,6 @@
 spring:
   application:
-    name: team3-backend-admin
+    name: team3-backend-batch
 
   profiles:
     include: db, secret
@@ -17,13 +17,24 @@ spring:
         format_sql: true
     show-sql: true
 
+  batch:
+    job:
+      enabled: false
+
 mybatis:
   mapper-locations: classpath:mappers/**/*.xml
-  type-aliases-package: com.ohgiraffers.team3backendadmin
+  type-aliases-package: com.ohgiraffers.team3backendbatch
   configuration:
     map-underscore-to-camel-case: true
 
-# JWT
 jwt:
-  expiration: 1800000 # 30 minutes
-  refresh-expiration: 604800000 # 7 days
+  expiration: 1800000
+  refresh-expiration: 604800000
+
+batch:
+  schedule:
+    enabled: false
+    zone: Asia/Seoul
+    quantitative-cron: 0 0 1 * * *
+    score-cron: 0 30 1 * * *
+    promotion-cron: 0 0 2 * * *
