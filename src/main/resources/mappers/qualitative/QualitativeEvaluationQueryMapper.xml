@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativeEvaluationQueryMapper">
+    <resultMap id="qualitativeEvaluationAggregateMap"
+               type="com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeEvaluationAggregate">
+        <constructor>
+            <idArg column="evaluation_id" javaType="java.lang.Long"/>
+            <arg column="evaluation_period_id" javaType="java.lang.Long"/>
+            <arg column="employee_id" javaType="java.lang.Long"/>
+            <arg column="evaluator_id" javaType="java.lang.Long"/>
+            <arg column="evaluation_level" javaType="java.lang.Long"/>
+            <arg column="second_evaluation_mode" javaType="com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.SecondEvaluationMode"/>
+            <arg column="base_raw_score" javaType="java.math.BigDecimal"/>
+            <arg column="comment_text" javaType="java.lang.String"/>
+            <arg column="input_method" javaType="java.lang.String"/>
+            <arg column="analysis_version" javaType="java.lang.String"/>
+            <arg column="submitted_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="qualitativeNormalizationTargetMap"
+               type="com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationTarget">
+        <constructor>
+            <idArg column="evaluation_id" javaType="java.lang.Long"/>
+            <arg column="raw_score" javaType="java.math.BigDecimal"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="qualitativeNormalizationStatisticsMap"
+               type="com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationStatistics">
+        <constructor>
+            <arg column="sample_count" javaType="java.lang.Long"/>
+            <arg column="mean_score" javaType="java.math.BigDecimal"/>
+            <arg column="stddev_score" javaType="java.math.BigDecimal"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findQualitativeEvaluationsForAnalysis"
+            resultMap="qualitativeEvaluationAggregateMap">
+        SELECT
+            qe.qualitative_evaluation_id AS evaluation_id,
+            qe.evaluation_period_id AS evaluation_period_id,
+            qe.evaluatee_id AS employee_id,
+            qe.evaluator_id AS evaluator_id,
+            qe.evaluation_level AS evaluation_level,
+            qe.second_evaluation_mode AS second_evaluation_mode,
+            CASE WHEN qe.evaluation_level = 2 THEN base.score ELSE NULL END AS base_raw_score,
+            qe.eval_comment AS comment_text,
+            qe.input_method AS input_method,
+            #{analysisVersion} AS analysis_version,
+            COALESCE(qe.updated_at, qe.created_at) AS submitted_at
+        FROM qualitative_evaluation qe
+        LEFT JOIN qualitative_evaluation base
+          ON base.evaluatee_id = qe.evaluatee_id
+         AND base.evaluation_period_id = qe.evaluation_period_id
+         AND base.evaluation_level = 1
+        WHERE qe.status IN ('SUBMITTED', 'CONFIRMED')
+          AND qe.evaluation_level IN (1, 2)
+          AND (
+                (
+                    qe.evaluation_level = 1
+                    AND qe.eval_comment IS NOT NULL
+                    AND CHAR_LENGTH(TRIM(qe.eval_comment)) > 0
+                )
+                OR
+                (
+                    qe.evaluation_level = 2
+                    AND (
+                        qe.second_evaluation_mode = 'KEEP_FIRST_SCORE'
+                        OR (
+                            qe.second_evaluation_mode = 'ANALYZE_COMMENT'
+                            AND qe.eval_comment IS NOT NULL
+                            AND CHAR_LENGTH(TRIM(qe.eval_comment)) > 0
+                        )
+                    )
+                )
+          )
+          <if test="evaluationPeriodId != null">
+              AND qe.evaluation_period_id = #{evaluationPeriodId}
+          </if>
+          <if test="employeeId != null">
+              AND qe.evaluatee_id = #{employeeId}
+          </if>
+          <if test="qualitativeEvaluationId != null">
+              AND qe.qualitative_evaluation_id = #{qualitativeEvaluationId}
+          </if>
+          <if test="!force">
+              AND qe.score IS NULL
+          </if>
+        ORDER BY qe.evaluation_period_id, qe.evaluatee_id, qe.evaluation_level, qe.qualitative_evaluation_id
+    </select>
+
+    <select id="findQualitativeEvaluationsForNormalization"
+            resultMap="qualitativeNormalizationTargetMap">
+        SELECT
+            qe.qualitative_evaluation_id AS evaluation_id,
+            qe.score AS raw_score
+        FROM qualitative_evaluation qe
+        WHERE qe.status IN ('SUBMITTED', 'CONFIRMED')
+          AND qe.evaluation_level IN (1, 2)
+          AND qe.evaluation_period_id = #{evaluationPeriodId}
+          AND qe.score IS NOT NULL
+          <if test="!force">
+              AND qe.s_qual IS NULL
+          </if>
+        ORDER BY qe.evaluatee_id, qe.evaluation_level, qe.qualitative_evaluation_id
+    </select>
+
+    <select id="findQualitativeNormalizationStatistics"
+            resultMap="qualitativeNormalizationStatisticsMap">
+        SELECT
+            COUNT(qe.score) AS sample_count,
+            COALESCE(AVG(qe.score), 0) AS mean_score,
+            COALESCE(STDDEV_SAMP(qe.score), 0) AS stddev_score
+        FROM qualitative_evaluation qe
+        WHERE qe.status IN ('SUBMITTED', 'CONFIRMED')
+          AND qe.evaluation_level IN (1, 2)
+          AND qe.evaluation_period_id = #{evaluationPeriodId}
+          AND qe.score IS NOT NULL
+    </select>
+
+    <select id="findLatestEvaluationPeriodIdForNormalization"
+            resultType="java.lang.Long">
+        SELECT qe.evaluation_period_id
+        FROM qualitative_evaluation qe
+        WHERE qe.status IN ('SUBMITTED', 'CONFIRMED')
+          AND qe.evaluation_level IN (1, 2)
+          AND qe.score IS NOT NULL
+          AND qe.s_qual IS NULL
+        GROUP BY qe.evaluation_period_id
+        ORDER BY MAX(COALESCE(qe.updated_at, qe.created_at)) DESC, qe.evaluation_period_id DESC
+        LIMIT 1
+    </select>
+</mapper>

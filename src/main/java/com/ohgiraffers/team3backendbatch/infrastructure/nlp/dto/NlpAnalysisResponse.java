@@ -1,15 +1,18 @@
 package com.ohgiraffers.team3backendbatch.infrastructure.nlp.dto;
 
+import java.math.BigDecimal;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 /**
- * NLP 분석 응답을 배치 내부 표준 모델로 정리한 스켈레톤이다.
- *
- * 예상 내용:
- * - sentence analyses
- * - token analyses
- * - sentiment score
- * - negation flags
- * - matched keyword metadata
+ * Internal NLP response model used by the batch module.
  */
+@Getter
+@AllArgsConstructor
 public class NlpAnalysisResponse {
-    // TODO NLP 응답 표준 DTO 필드 정의
+
+    private final BigDecimal sentimentScore;
+    private final boolean negationDetected;
+    private final List<String> keywordLemmas;
 }

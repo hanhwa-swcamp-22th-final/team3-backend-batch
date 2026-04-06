@@ -21,6 +21,19 @@ spring:
     job:
       enabled: false
 
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${BATCH_KAFKA_CONSUMER_GROUP_ID:team3-batch}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 mybatis:
   mapper-locations: classpath:mappers/**/*.xml
   type-aliases-package: com.ohgiraffers.team3backendbatch
@@ -36,5 +49,10 @@ batch:
     enabled: false
     zone: Asia/Seoul
     quantitative-cron: 0 0 1 * * *
+    qualitative-normalization-cron: 0 15 1 1 * *
     score-cron: 0 30 1 * * *
     promotion-cron: 0 0 2 * * *
+
+nlp:
+  google:
+    credentials-location: ${BATCH_GOOGLE_CREDENTIALS_LOCATION:${GOOGLE_APPLICATION_CREDENTIALS:}}
