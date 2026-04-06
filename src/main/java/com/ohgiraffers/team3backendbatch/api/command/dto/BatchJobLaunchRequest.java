@@ -1,22 +1,33 @@
 package com.ohgiraffers.team3backendbatch.api.command.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
- * 수동 배치 실행 요청 스켈레톤이다.
+ * Manual batch launch request DTO.
  *
- * 예상 사용 방식:
- * - mode + periodType + evaluationPeriodId 조합으로 대상 기간 결정
- * - EMPLOYEE 모드에서는 employeeId를 함께 전달
- * - force=true면 같은 기간/같은 대상의 중복 실행 제약을 예외 처리할 수 있다.
+ * Intended usage:
+ * - determine execution window from mode + periodType + evaluationPeriodId
+ * - pass employeeId when launching employee-scoped jobs
+ * - pass qualitativeEvaluationId when launching a single qualitative evaluation record
+ * - when force=true, duplicate execution checks for the same target may be bypassed by policy
  */
-public record BatchJobLaunchRequest(
-    ManualJobLaunchMode mode,
-    BatchPeriodType periodType,
-    Long evaluationPeriodId,
-    Long employeeId,
-    Boolean force,
-    @NotBlank String requestedBy,
-    @NotBlank String reason
-) {
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class BatchJobLaunchRequest {
+    private ManualJobLaunchMode mode;
+    private BatchPeriodType periodType;
+    private Long evaluationPeriodId;
+    private Long employeeId;
+    private Long qualitativeEvaluationId;
+    private Boolean force;
+    @NotBlank
+    private String requestedBy;
+    @NotBlank
+    private String reason;
 }

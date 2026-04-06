@@ -17,13 +17,11 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class BatchJobLauncherFacade {
-
     private final JobLauncher jobLauncher;
     private final Map<String, Job> jobs;
 
     public BatchJobLaunchResponse launch(String jobName, BatchJobLaunchRequest request) {
         Job job = jobs.get(jobName);
-
         if (job == null) {
             throw new IllegalArgumentException("Unknown batch job: " + jobName);
         }
@@ -32,13 +30,13 @@ public class BatchJobLauncherFacade {
 
         try {
             JobExecution execution = jobLauncher.run(job, jobParameters);
-            return new BatchJobLaunchResponse(
-                execution.getId(),
-                jobName,
-                execution.getStatus().name(),
-                toStringMap(jobParameters),
-                LocalDateTime.now()
-            );
+            return BatchJobLaunchResponse.builder()
+                .executionId(execution.getId())
+                .jobName(jobName)
+                .status(execution.getStatus().name())
+                .parameters(toStringMap(jobParameters))
+                .launchedAt(LocalDateTime.now())
+                .build();
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to launch batch job: " + jobName, exception);
         }
@@ -55,43 +53,39 @@ public class BatchJobLauncherFacade {
         String triggerSource,
         String reason
     ) {
-        launch(jobName, new BatchJobLaunchRequest(
-            null,
-            periodType,
-            evaluationPeriodId,
-            null,
-            Boolean.FALSE,
-            triggerSource,
-            reason
-        ));
+        launch(jobName, BatchJobLaunchRequest.builder()
+            .periodType(periodType)
+            .evaluationPeriodId(evaluationPeriodId)
+            .force(Boolean.FALSE)
+            .requestedBy(triggerSource)
+            .reason(reason)
+            .build());
     }
 
     private Map<String, JobParameter<?>> toJobParameterMap(BatchJobLaunchRequest request) {
         Map<String, JobParameter<?>> parameters = new LinkedHashMap<>();
         parameters.put("requestedAt", new JobParameter<>(System.currentTimeMillis(), Long.class));
-        parameters.put("requestedBy", new JobParameter<>(request.requestedBy(), String.class));
-        parameters.put("reason", new JobParameter<>(request.reason(), String.class));
+        parameters.put("requestedBy", new JobParameter<>(request.getRequestedBy(), String.class));
+        parameters.put("reason", new JobParameter<>(request.getReason(), String.class));
 
-        if (request.mode() != null) {
-            parameters.put("mode", new JobParameter<>(request.mode().name(), String.class));
+        if (request.getMode() != null) {
+            parameters.put("mode", new JobParameter<>(request.getMode().name(), String.class));
         }
-
-        if (request.periodType() != null) {
-            parameters.put("periodType", new JobParameter<>(request.periodType().name(), String.class));
+        if (request.getPeriodType() != null) {
+            parameters.put("periodType", new JobParameter<>(request.getPeriodType().name(), String.class));
         }
-
-        if (request.evaluationPeriodId() != null) {
-            parameters.put("evaluationPeriodId", new JobParameter<>(request.evaluationPeriodId(), Long.class));
+        if (request.getEvaluationPeriodId() != null) {
+            parameters.put("evaluationPeriodId", new JobParameter<>(request.getEvaluationPeriodId(), Long.class));
         }
-
-        if (request.employeeId() != null) {
-            parameters.put("employeeId", new JobParameter<>(request.employeeId(), Long.class));
+        if (request.getEmployeeId() != null) {
+            parameters.put("employeeId", new JobParameter<>(request.getEmployeeId(), Long.class));
         }
-
-        if (request.force() != null) {
-            parameters.put("force", new JobParameter<>(request.force().toString(), String.class));
+        if (request.getQualitativeEvaluationId() != null) {
+            parameters.put("qualitativeEvaluationId", new JobParameter<>(request.getQualitativeEvaluationId(), Long.class));
         }
-
+        if (request.getForce() != null) {
+            parameters.put("force", new JobParameter<>(request.getForce().toString(), String.class));
+        }
         return parameters;
     }
 

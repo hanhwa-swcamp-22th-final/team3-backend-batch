@@ -30,16 +30,16 @@ public class BatchJobQueryFacade {
                     Comparator.nullsLast(Comparator.naturalOrder())))
                 .orElse(null);
 
-            responses.add(new BatchJobSummaryResponse(
-                jobName,
-                latestExecution != null ? latestExecution.getId() : null,
-                latestExecution != null ? latestExecution.getStatus().name() : "NEVER_RUN",
-                latestExecution != null ? latestExecution.getStartTime() : null,
-                latestExecution != null ? latestExecution.getEndTime() : null
-            ));
+            responses.add(BatchJobSummaryResponse.builder()
+                .jobName(jobName)
+                .latestExecutionId(latestExecution != null ? latestExecution.getId() : null)
+                .latestStatus(latestExecution != null ? latestExecution.getStatus().name() : "NEVER_RUN")
+                .latestStartTime(latestExecution != null ? latestExecution.getStartTime() : null)
+                .latestEndTime(latestExecution != null ? latestExecution.getEndTime() : null)
+                .build());
         }
 
-        responses.sort(Comparator.comparing(BatchJobSummaryResponse::jobName));
+        responses.sort(Comparator.comparing(BatchJobSummaryResponse::getJobName));
         return responses;
     }
 
@@ -50,37 +50,37 @@ public class BatchJobQueryFacade {
             throw new IllegalArgumentException("Unknown executionId: " + executionId);
         }
 
-        return new BatchJobExecutionResponse(
-            execution.getId(),
-            execution.getJobInstance().getJobName(),
-            execution.getStatus().name(),
-            execution.getStartTime(),
-            execution.getEndTime(),
-            execution.getJobParameters().getParameters().entrySet().stream()
+        return BatchJobExecutionResponse.builder()
+            .executionId(execution.getId())
+            .jobName(execution.getJobInstance().getJobName())
+            .status(execution.getStatus().name())
+            .startTime(execution.getStartTime())
+            .endTime(execution.getEndTime())
+            .parameters(execution.getJobParameters().getParameters().entrySet().stream()
                 .collect(LinkedHashMap::new,
                     (map, entry) -> map.put(entry.getKey(), String.valueOf(entry.getValue().getValue())),
-                    LinkedHashMap::putAll)
-        );
+                    LinkedHashMap::putAll))
+            .build();
     }
 
     public List<BatchExecutionLogResponse> getExecutionLogs() {
         List<BatchExecutionLogResponse> logs = new ArrayList<>();
 
         for (BatchJobSummaryResponse summary : getJobSummaries()) {
-            if (summary.latestExecutionId() == null) {
+            if (summary.getLatestExecutionId() == null) {
                 continue;
             }
 
-            logs.add(new BatchExecutionLogResponse(
-                "BATCH_JOB",
-                "Latest execution status is " + summary.latestStatus(),
-                summary.jobName(),
-                summary.latestExecutionId(),
-                summary.latestEndTime() != null ? summary.latestEndTime() : summary.latestStartTime()
-            ));
+            logs.add(BatchExecutionLogResponse.builder()
+                .type("BATCH_JOB")
+                .message("Latest execution status is " + summary.getLatestStatus())
+                .jobName(summary.getJobName())
+                .executionId(summary.getLatestExecutionId())
+                .occurredAt(summary.getLatestEndTime() != null ? summary.getLatestEndTime() : summary.getLatestStartTime())
+                .build());
         }
 
-        logs.sort(Comparator.comparing(BatchExecutionLogResponse::occurredAt,
+        logs.sort(Comparator.comparing(BatchExecutionLogResponse::getOccurredAt,
             Comparator.nullsLast(Comparator.reverseOrder())));
         return logs;
     }
