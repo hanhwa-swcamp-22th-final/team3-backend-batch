@@ -1,9 +1,9 @@
 package com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.writer;
 
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationResult;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.entity.QualitativeEvaluationEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationNormalizedEvent;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.publisher.QualitativeNormalizationEventPublisher;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.entity.QualitativeScoreProjectionEntity;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeEvaluationRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeScoreProjectionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,14 +15,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class QualitativeNormalizationWriter implements ItemWriter<QualitativeNormalizationResult> {
 
-    private final QualitativeEvaluationRepository qualitativeEvaluationRepository;
     private final QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository;
+    private final QualitativeNormalizationEventPublisher qualitativeNormalizationEventPublisher;
 
     @Override
     public void write(Chunk<? extends QualitativeNormalizationResult> chunk) {
@@ -40,8 +42,9 @@ public class QualitativeNormalizationWriter implements ItemWriter<QualitativeNor
                 Function.identity()
             ));
 
+        List<QualitativeNormalizationResult> results = List.copyOf(chunk.getItems());
         updateProjection(resultById, evaluationIds);
-        updateQualitativeEvaluations(resultById, evaluationIds);
+        publishNormalizedEventsAfterCommit(results);
     }
 
     private void updateProjection(Map<Long, QualitativeNormalizationResult> resultById, List<Long> evaluationIds) {
@@ -59,23 +62,31 @@ public class QualitativeNormalizationWriter implements ItemWriter<QualitativeNor
         qualitativeScoreProjectionRepository.saveAll(projections);
     }
 
-    private void updateQualitativeEvaluations(Map<Long, QualitativeNormalizationResult> resultById, List<Long> evaluationIds) {
-        List<QualitativeEvaluationEntity> evaluations = qualitativeEvaluationRepository
-            .findAllByQualitativeEvaluationIdIn(evaluationIds);
-        if (evaluations.size() != evaluationIds.size()) {
-            throw new IllegalStateException("Some qualitative evaluations were not found for normalization update.");
+    private void publishNormalizedEventsAfterCommit(List<QualitativeNormalizationResult> results) {
+        Runnable publishAction = () -> results.forEach(result ->
+            qualitativeNormalizationEventPublisher.publishNormalized(
+                new QualitativeEvaluationNormalizedEvent(
+                    result.getEvaluationId(),
+                    result.getRawScore(),
+                    result.getSQual(),
+                    result.getGrade(),
+                    LocalDateTime.now()
+                )
+            )
+        );
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    publishAction.run();
+                }
+            });
+            log.info("Updated qualitative normalization projection and queued normalized events. itemCount={}", results.size());
+            return;
         }
 
-        for (QualitativeEvaluationEntity evaluation : evaluations) {
-            QualitativeNormalizationResult result = resultById.get(evaluation.getQualitativeEvaluationId());
-            evaluation.applyCalculatedResult(
-                result.getRawScore(),
-                result.getSQual(),
-                result.getGrade()
-            );
-        }
-
-        qualitativeEvaluationRepository.saveAll(evaluations);
-        log.info("Updated qualitative normalized score and projection. itemCount={}", evaluations.size());
+        publishAction.run();
+        log.info("Updated qualitative normalization projection and queued normalized events. itemCount={}", results.size());
     }
 }
