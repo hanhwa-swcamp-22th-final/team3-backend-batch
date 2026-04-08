@@ -1,4 +1,4 @@
-package com.ohgiraffers.team3backendbatch.domain.scoring;
+package com.ohgiraffers.team3backendbatch.domain.qualitative.model;
 
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;

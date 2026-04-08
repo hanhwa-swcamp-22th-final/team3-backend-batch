@@ -3,7 +3,7 @@ package com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.pr
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationResult;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationStatistics;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationTarget;
-import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeScoreCalculator;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeScoreCalculator;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativeEvaluationQueryMapper;
 import java.math.BigDecimal;
 import lombok.extern.slf4j.Slf4j;

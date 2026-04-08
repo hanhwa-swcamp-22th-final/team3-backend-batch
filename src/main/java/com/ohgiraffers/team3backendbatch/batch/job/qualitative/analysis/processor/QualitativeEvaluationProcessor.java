@@ -59,9 +59,11 @@ public class QualitativeEvaluationProcessor
             .contextWeight(commentAnalysis != null ? commentAnalysis.getContextWeight() : null)
             .negationDetected(commentAnalysis != null && commentAnalysis.isNegationDetected())
             .algorithmVersion(item.getAnalysisVersion())
+            .algorithmVersionId(item.getAlgorithmVersionId())
             .analysisStatus("COMPLETED")
             .analyzedAt(LocalDateTime.now())
             .biasCorrected(false)
+            .sentenceAnalyses(commentAnalysis != null ? commentAnalysis.getSentenceAnalyses() : List.of())
             .build();
     }
 }

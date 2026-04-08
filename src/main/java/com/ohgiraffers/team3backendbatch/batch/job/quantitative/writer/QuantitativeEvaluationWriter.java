@@ -1,29 +1,50 @@
 package com.ohgiraffers.team3backendbatch.batch.job.quantitative.writer;
 
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationAggregate;
+import com.ohgiraffers.team3backendbatch.common.idgenerator.IdGenerator;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.QuantitativeEvaluationEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.QuantitativeEvaluationRepository;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.stereotype.Component;
 
-/**
- * 정량 평가 결과를 quantitative_evaluation 테이블에 반영하는 Writer 스켈레톤이다.
- *
- * 예상 기능:
- * - evaluation period + employee + equipment 기준 upsert
- * - 수동 실행 시 동일 키 충돌 처리
- * - created/updated audit 값 반영
- * - 필요 시 performance_point 상세 이력과 함께 트랜잭션 처리
- */
 @Component
+@RequiredArgsConstructor
 public class QuantitativeEvaluationWriter implements ItemWriter<QuantitativeEvaluationAggregate> {
 
     private static final Logger log = LoggerFactory.getLogger(QuantitativeEvaluationWriter.class);
 
+    private final QuantitativeEvaluationRepository quantitativeEvaluationRepository;
+    private final IdGenerator idGenerator;
+
     @Override
     public void write(Chunk<? extends QuantitativeEvaluationAggregate> chunk) {
-        log.info("QuantitativeEvaluationWriter chunk skeleton invoked. itemCount={}", chunk.size());
-        // TODO JPA batch insert 또는 MyBatis bulk upsert 구현
+        List<QuantitativeEvaluationEntity> entities = new ArrayList<>();
+
+        for (QuantitativeEvaluationAggregate item : chunk.getItems()) {
+            QuantitativeEvaluationEntity entity = quantitativeEvaluationRepository
+                .findByEmployeeIdAndEvaluationPeriodIdAndEquipmentId(
+                    item.getEmployeeId(),
+                    item.getEvaluationPeriodId(),
+                    item.getEquipmentId()
+                )
+                .orElseGet(() -> QuantitativeEvaluationEntity.create(
+                    idGenerator.generate(),
+                    item.getEmployeeId(),
+                    item.getEvaluationPeriodId(),
+                    item.getEquipmentId()
+                ));
+
+            entity.applyCalculatedResult(item);
+            entities.add(entity);
+        }
+
+        quantitativeEvaluationRepository.saveAll(entities);
+        log.info("Upserted quantitative evaluations. itemCount={}", entities.size());
     }
 }

@@ -1,12 +1,13 @@
 package com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.processor;
 
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeCommentAnalysis;
-import com.ohgiraffers.team3backendbatch.domain.scoring.Chunk;
-import com.ohgiraffers.team3backendbatch.domain.scoring.ChunkContribution;
-import com.ohgiraffers.team3backendbatch.domain.scoring.KeywordScoreResult;
-import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeChunkSplitter;
-import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeKeywordScorer;
-import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeScoreCalculator;
+import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeSentenceAnalysis;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.Chunk;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.ChunkContribution;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.KeywordScoreResult;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeChunkSplitter;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeKeywordScorer;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeScoreCalculator;
 import com.ohgiraffers.team3backendbatch.infrastructure.nlp.NlpAnalysisGateway;
 import com.ohgiraffers.team3backendbatch.infrastructure.nlp.dto.NlpAnalysisResponse;
 import java.math.BigDecimal;
@@ -32,6 +33,8 @@ public class QualitativeCommentAnalyzer {
     public QualitativeCommentAnalysis analyze(String commentText) {
         List<Chunk> chunks = qualitativeChunkSplitter.splitIntoChunks(commentText);
         List<ChunkContribution> contributions = new ArrayList<>();
+        List<NlpAnalysisResponse> responses = new ArrayList<>();
+        List<KeywordScoreResult> keywordScores = new ArrayList<>();
         Set<String> matchedKeywordSet = new LinkedHashSet<>();
         boolean negationDetected = false;
 
@@ -47,6 +50,8 @@ public class QualitativeCommentAnalyzer {
                 response.isNegationDetected()
             );
             contributions.add(new ChunkContribution(chunkScore, chunk.isContrastive()));
+            responses.add(response);
+            keywordScores.add(keywordScore);
             matchedKeywordSet.addAll(keywordScore.getMatchedKeywords());
             negationDetected = negationDetected || response.isNegationDetected();
         }
@@ -59,6 +64,21 @@ public class QualitativeCommentAnalyzer {
         BigDecimal officialRawScore = qualitativeScoreCalculator.applyContextWeight(commentRawScore, contextWeight);
         BigDecimal commentSQual = qualitativeScoreCalculator.normalizeToSQual(officialRawScore);
 
+        List<QualitativeSentenceAnalysis> sentenceAnalyses = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            sentenceAnalyses.add(
+                QualitativeSentenceAnalysis.builder()
+                    .sentenceOrder(i + 1)
+                    .contrastive(chunks.get(i).isContrastive())
+                    .nlpSentiment(responses.get(i).getSentimentScore())
+                    .matchedKeywordCount(keywordScores.get(i).getMatchedKeywordCount())
+                    .matchedKeywords(List.copyOf(keywordScores.get(i).getMatchedKeywords()))
+                    .contextWeight(contextWeight)
+                    .negationDetected(responses.get(i).isNegationDetected())
+                    .build()
+            );
+        }
+
         return QualitativeCommentAnalysis.builder()
             .commentRawScore(commentRawScore)
             .officialRawScore(officialRawScore)
@@ -67,6 +87,7 @@ public class QualitativeCommentAnalyzer {
             .matchedKeywords(List.copyOf(matchedKeywordSet))
             .contextWeight(contextWeight)
             .negationDetected(negationDetected)
+            .sentenceAnalyses(List.copyOf(sentenceAnalyses))
             .build();
     }
 }

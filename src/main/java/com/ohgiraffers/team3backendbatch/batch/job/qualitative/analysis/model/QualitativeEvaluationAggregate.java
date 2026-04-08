@@ -14,6 +14,7 @@ public class QualitativeEvaluationAggregate {
 
     private final Long evaluationId;
     private final Long evaluationPeriodId;
+    private final Long algorithmVersionId;
     private final Long employeeId;
     private final Long evaluatorId;
     private final Long evaluationLevel;

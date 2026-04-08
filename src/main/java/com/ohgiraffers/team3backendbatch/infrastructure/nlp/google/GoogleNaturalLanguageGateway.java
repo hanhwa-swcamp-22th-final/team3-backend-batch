@@ -13,18 +13,11 @@ import com.ohgiraffers.team3backendbatch.infrastructure.nlp.dto.NlpAnalysisRespo
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
  * Google Natural Language API gateway based on annotateText.
- *
- * TODO 운영 보강 포인트:
- * - Google API 예외를 배치 도메인 예외로 감싸고 retry 대상/비대상 예외를 구분한다.
- * - 필요 시 language/hint 설정이나 한국어 전용 전처리를 추가한다.
- * - 청크별 상세 응답 전체를 저장할 필요가 있으면 별도 DTO 또는 raw payload 저장 전략을 추가한다.
  */
-@Component
 public class GoogleNaturalLanguageGateway implements NlpAnalysisGateway {
 
     private final LanguageServiceClient languageServiceClient;

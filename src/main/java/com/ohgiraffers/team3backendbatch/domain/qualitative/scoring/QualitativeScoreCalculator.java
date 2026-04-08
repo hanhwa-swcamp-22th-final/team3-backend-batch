@@ -1,4 +1,6 @@
-package com.ohgiraffers.team3backendbatch.domain.scoring;
+package com.ohgiraffers.team3backendbatch.domain.qualitative.scoring;
+
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.ChunkContribution;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

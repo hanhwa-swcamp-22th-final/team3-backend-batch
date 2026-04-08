@@ -10,9 +10,10 @@ import static org.mockito.Mockito.when;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeAnalysisResult;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.SecondEvaluationMode;
-import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeChunkSplitter;
-import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeKeywordScorer;
-import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeScoreCalculator;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.QualitativeKeywordRule;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeChunkSplitter;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeKeywordScorer;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeScoreCalculator;
 import com.ohgiraffers.team3backendbatch.infrastructure.nlp.NlpAnalysisGateway;
 import com.ohgiraffers.team3backendbatch.infrastructure.nlp.dto.NlpAnalysisResponse;
 import java.math.BigDecimal;
@@ -201,7 +202,13 @@ class QualitativeEvaluationProcessorTest {
             new QualitativeCommentAnalyzer(
                 nlpAnalysisGateway,
                 new QualitativeChunkSplitter(),
-                new QualitativeKeywordScorer(),
+                new QualitativeKeywordScorer(() -> List.of(
+                    new QualitativeKeywordRule("equipment maintenance", BigDecimal.valueOf(0.30)),
+                    new QualitativeKeywordRule("proposal", BigDecimal.valueOf(0.20)),
+                    new QualitativeKeywordRule("yield", BigDecimal.valueOf(0.20)),
+                    new QualitativeKeywordRule("defect reduction", BigDecimal.valueOf(0.25)),
+                    new QualitativeKeywordRule("analysis", BigDecimal.valueOf(0.15))
+                )),
                 calculator
             ),
             new QualitativeEvaluationScorePolicy(calculator)

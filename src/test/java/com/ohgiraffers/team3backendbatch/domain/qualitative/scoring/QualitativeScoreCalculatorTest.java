@@ -1,6 +1,8 @@
-package com.ohgiraffers.team3backendbatch.domain.scoring;
+package com.ohgiraffers.team3backendbatch.domain.qualitative.scoring;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.ChunkContribution;
 
 import java.math.BigDecimal;
 import java.util.List;

@@ -1,3 +1,6 @@
+server:
+  port: 8084
+
 spring:
   application:
     name: team3-backend-batch
@@ -20,16 +23,27 @@ spring:
   batch:
     job:
       enabled: false
+    jdbc:
+      initialize-schema: always
 
   kafka:
+    # Kafka broker address list (hostname:port)
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
     consumer:
+      # Consumer group id for batch listeners
       group-id: ${BATCH_KAFKA_CONSUMER_GROUP_ID:team3-batch}
+
+      # Read from the earliest offset when no committed offset exists
       auto-offset-reset: earliest
+
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+
       properties:
+        # Allow JSON deserialization for trusted packages in local development
         spring.json.trusted.packages: "*"
+
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -46,13 +60,13 @@ jwt:
 
 batch:
   schedule:
-    enabled: false
-    zone: Asia/Seoul
-    quantitative-cron: 0 0 1 * * *
-    qualitative-normalization-cron: 0 15 1 1 * *
-    score-cron: 0 30 1 * * *
-    promotion-cron: 0 0 2 * * *
+    enabled: ${BATCH_SCHEDULE_ENABLED:false}
+    zone: ${BATCH_SCHEDULE_ZONE:Asia/Seoul}
+    quantitative-cron: ${BATCH_SCHEDULE_QUANTITATIVE_CRON:0 0 1 * * *}
+    qualitative-normalization-cron: ${BATCH_SCHEDULE_QUALITATIVE_NORMALIZATION_CRON:0 15 1 1 * *}
+    score-cron: ${BATCH_SCHEDULE_SCORE_CRON:0 30 1 * * *}
+    promotion-cron: ${BATCH_SCHEDULE_PROMOTION_CRON:0 0 2 * * *}
 
 nlp:
   google:
-    credentials-location: ${BATCH_GOOGLE_CREDENTIALS_LOCATION:${GOOGLE_APPLICATION_CREDENTIALS:}}
+    credentials-location: classpath:gcp-key.json

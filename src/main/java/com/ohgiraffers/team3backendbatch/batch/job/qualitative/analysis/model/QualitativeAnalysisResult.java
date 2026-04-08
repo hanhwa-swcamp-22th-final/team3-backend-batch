@@ -33,6 +33,7 @@ public class QualitativeAnalysisResult {
     private final BigDecimal contextWeight;
     private final boolean negationDetected;
     private final String algorithmVersion;
+    private final Long algorithmVersionId;
     private final String analysisStatus;
     private final LocalDateTime analyzedAt;
     private final boolean biasCorrected;
@@ -40,4 +41,5 @@ public class QualitativeAnalysisResult {
     private final BigDecimal evaluatorAverage;
     private final BigDecimal companyAverage;
     private final BigDecimal alphaBias;
+    private final List<QualitativeSentenceAnalysis> sentenceAnalyses;
 }

@@ -4,7 +4,7 @@ import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.Qu
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeEvaluationScoreResult;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.SecondEvaluationMode;
-import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeScoreCalculator;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeScoreCalculator;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
  * Applies evaluation-level policy to a comment analysis result.
  * Level 1 creates the base raw score.
  * Level 2 either keeps the first raw score or adds a raw-score adjustment.
- * Normalized score and grade are finalized later in monthly normalization.
  */
 @Component
 @RequiredArgsConstructor
@@ -21,6 +20,9 @@ public class QualitativeEvaluationScorePolicy {
 
     private final QualitativeScoreCalculator qualitativeScoreCalculator;
 
+    /**
+     * Applies level-specific policy and returns both raw and score-based grade fields.
+     */
     public QualitativeEvaluationScoreResult apply(
         QualitativeEvaluationAggregate aggregate,
         QualitativeCommentAnalysis commentAnalysis
@@ -39,13 +41,10 @@ public class QualitativeEvaluationScorePolicy {
     }
 
     private QualitativeEvaluationScoreResult buildFirstEvaluationResult(QualitativeCommentAnalysis commentAnalysis) {
-        return QualitativeEvaluationScoreResult.builder()
-            .finalRawScore(commentAnalysis.getOfficialRawScore())
-            .originalSQual(null)
-            .finalSQual(null)
-            .adjustmentScore(BigDecimal.ZERO.setScale(4))
-            .normalizedTier(null)
-            .build();
+        return buildScoreResult(
+            commentAnalysis.getOfficialRawScore(),
+            BigDecimal.ZERO.setScale(4)
+        );
     }
 
     private QualitativeEvaluationScoreResult buildSecondEvaluationResult(
@@ -60,13 +59,7 @@ public class QualitativeEvaluationScorePolicy {
         }
 
         if (secondEvaluationMode == SecondEvaluationMode.KEEP_FIRST_SCORE) {
-            return QualitativeEvaluationScoreResult.builder()
-                .finalRawScore(baseRawScore)
-                .originalSQual(null)
-                .finalSQual(null)
-                .adjustmentScore(BigDecimal.ZERO.setScale(4))
-                .normalizedTier(null)
-                .build();
+            return buildScoreResult(baseRawScore, BigDecimal.ZERO.setScale(4));
         }
 
         QualitativeCommentAnalysis requiredCommentAnalysis = requireCommentAnalysis(commentAnalysis);
@@ -74,12 +67,22 @@ public class QualitativeEvaluationScorePolicy {
         BigDecimal adjustmentScore = qualitativeScoreCalculator.calculateSecondaryAdjustmentRaw(officialCommentRaw);
         BigDecimal finalRawScore = qualitativeScoreCalculator.applyRawAdjustment(baseRawScore, adjustmentScore);
 
+        return buildScoreResult(finalRawScore, adjustmentScore);
+    }
+
+    private QualitativeEvaluationScoreResult buildScoreResult(
+        BigDecimal finalRawScore,
+        BigDecimal adjustmentScore
+    ) {
+        BigDecimal normalizedScore = qualitativeScoreCalculator.normalizeToSQual(finalRawScore);
+        String normalizedTier = qualitativeScoreCalculator.classifyTier(normalizedScore);
+
         return QualitativeEvaluationScoreResult.builder()
             .finalRawScore(finalRawScore)
-            .originalSQual(null)
-            .finalSQual(null)
+            .originalSQual(normalizedScore)
+            .finalSQual(normalizedScore)
             .adjustmentScore(adjustmentScore)
-            .normalizedTier(null)
+            .normalizedTier(normalizedTier)
             .build();
     }
 

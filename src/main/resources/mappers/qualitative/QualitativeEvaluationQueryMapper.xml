@@ -8,6 +8,7 @@
         <constructor>
             <idArg column="evaluation_id" javaType="java.lang.Long"/>
             <arg column="evaluation_period_id" javaType="java.lang.Long"/>
+            <arg column="algorithm_version_id" javaType="java.lang.Long"/>
             <arg column="employee_id" javaType="java.lang.Long"/>
             <arg column="evaluator_id" javaType="java.lang.Long"/>
             <arg column="evaluation_level" javaType="java.lang.Long"/>
@@ -42,6 +43,7 @@
         SELECT
             qe.qualitative_evaluation_id AS evaluation_id,
             qe.evaluation_period_id AS evaluation_period_id,
+            ep.algorithm_version_id AS algorithm_version_id,
             qe.evaluatee_id AS employee_id,
             qe.evaluator_id AS evaluator_id,
             qe.evaluation_level AS evaluation_level,
@@ -56,6 +58,8 @@
           ON base.evaluatee_id = qe.evaluatee_id
          AND base.evaluation_period_id = qe.evaluation_period_id
          AND base.evaluation_level = 1
+        LEFT JOIN evaluation_period ep
+          ON ep.eval_period_id = qe.evaluation_period_id
         WHERE qe.status IN ('SUBMITTED', 'CONFIRMED')
           AND qe.evaluation_level IN (1, 2)
           AND (

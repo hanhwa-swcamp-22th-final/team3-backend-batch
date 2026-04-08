@@ -7,19 +7,18 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * Raw NLP-based analysis result derived from a qualitative comment.
+ * Sentence-level qualitative analysis metadata.
  */
 @Getter
 @Builder
 @AllArgsConstructor
-public class QualitativeCommentAnalysis {
+public class QualitativeSentenceAnalysis {
 
-    private final BigDecimal commentRawScore;
-    private final BigDecimal officialRawScore;
-    private final BigDecimal commentSQual;
+    private final int sentenceOrder;
+    private final boolean contrastive;
+    private final BigDecimal nlpSentiment;
     private final int matchedKeywordCount;
     private final List<String> matchedKeywords;
     private final BigDecimal contextWeight;
     private final boolean negationDetected;
-    private final List<QualitativeSentenceAnalysis> sentenceAnalyses;
 }

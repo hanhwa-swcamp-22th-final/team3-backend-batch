@@ -1,4 +1,8 @@
-package com.ohgiraffers.team3backendbatch.domain.scoring;
+package com.ohgiraffers.team3backendbatch.domain.qualitative.scoring;
+
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.Chunk;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.MarkerMatch;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.MarkerPattern;
 
 import java.util.List;
 import java.util.Locale;
