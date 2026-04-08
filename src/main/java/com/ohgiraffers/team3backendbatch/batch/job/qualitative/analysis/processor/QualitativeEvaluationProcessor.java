@@ -11,12 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
-/**
- * Converts qualitative comment text into an official score.
- * The processor orchestrates two layers:
- * 1) comment analysis
- * 2) evaluation-level scoring policy
- */
 @Component
 @RequiredArgsConstructor
 public class QualitativeEvaluationProcessor
@@ -37,7 +31,7 @@ public class QualitativeEvaluationProcessor
 
         QualitativeCommentAnalysis commentAnalysis = reusedPreviousScore
             ? null
-            : qualitativeCommentAnalyzer.analyze(item.getCommentText());
+            : qualitativeCommentAnalyzer.analyze(item.getCommentText(), item.getKeywordRules());
         QualitativeEvaluationScoreResult scoreResult = qualitativeEvaluationScorePolicy.apply(item, commentAnalysis);
 
         return QualitativeAnalysisResult.builder()

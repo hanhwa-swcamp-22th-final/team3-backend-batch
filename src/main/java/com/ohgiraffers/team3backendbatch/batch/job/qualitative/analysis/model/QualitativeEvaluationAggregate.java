@@ -1,13 +1,12 @@
 package com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model;
 
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.QualitativeKeywordRule;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-/**
- * Qualitative analysis input model.
- */
 @Getter
 @AllArgsConstructor
 public class QualitativeEvaluationAggregate {
@@ -24,4 +23,5 @@ public class QualitativeEvaluationAggregate {
     private final String inputMethod;
     private final String analysisVersion;
     private final LocalDateTime submittedAt;
+    private final List<QualitativeKeywordRule> keywordRules;
 }

@@ -23,9 +23,10 @@ public class QualitativeAnalysisEventPublisher {
             event
         );
         log.info(
-            "Published qualitative analyzed event. evaluationId={}, status={}, sQual={}",
+            "Published qualitative analyzed event. evaluationId={}, status={}, rawScore={}, sQual={}",
             event.getQualitativeEvaluationId(),
             event.getAnalysisStatus(),
+            event.getRawScore(),
             event.getSQual()
         );
     }

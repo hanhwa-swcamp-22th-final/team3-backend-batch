@@ -4,7 +4,7 @@ import com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.mod
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationStatistics;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationTarget;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeScoreCalculator;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativeEvaluationQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeScoreProjectionRepository;
 import java.math.BigDecimal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -20,7 +20,7 @@ public class QualitativeNormalizationProcessor
 
     private static final long MIN_SAMPLE_SIZE = 2L;
 
-    private final QualitativeEvaluationQueryMapper qualitativeEvaluationQueryMapper;
+    private final QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository;
     private final QualitativeScoreCalculator qualitativeScoreCalculator;
     private final Long requestedEvaluationPeriodId;
 
@@ -29,11 +29,11 @@ public class QualitativeNormalizationProcessor
     private boolean insufficientSampleLogged;
 
     public QualitativeNormalizationProcessor(
-        QualitativeEvaluationQueryMapper qualitativeEvaluationQueryMapper,
+        QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository,
         QualitativeScoreCalculator qualitativeScoreCalculator,
         @Value("#{jobParameters['evaluationPeriodId']}") Long evaluationPeriodId
     ) {
-        this.qualitativeEvaluationQueryMapper = qualitativeEvaluationQueryMapper;
+        this.qualitativeScoreProjectionRepository = qualitativeScoreProjectionRepository;
         this.qualitativeScoreCalculator = qualitativeScoreCalculator;
         this.requestedEvaluationPeriodId = evaluationPeriodId;
     }
@@ -73,16 +73,24 @@ public class QualitativeNormalizationProcessor
         if (statistics == null) {
             resolvedEvaluationPeriodId = requestedEvaluationPeriodId != null
                 ? requestedEvaluationPeriodId
-                : qualitativeEvaluationQueryMapper.findLatestEvaluationPeriodIdForNormalization();
+                : qualitativeScoreProjectionRepository.findLatestEvaluationPeriodIdForNormalization();
 
             if (resolvedEvaluationPeriodId == null) {
                 statistics = new QualitativeNormalizationStatistics(0L, BigDecimal.ZERO, BigDecimal.ZERO);
                 return statistics;
             }
 
-            statistics = qualitativeEvaluationQueryMapper.findQualitativeNormalizationStatistics(resolvedEvaluationPeriodId);
-            if (statistics == null) {
+            QualitativeScoreProjectionRepository.QualitativeScoreProjectionStatisticsView view =
+                qualitativeScoreProjectionRepository.findNormalizationStatistics(resolvedEvaluationPeriodId);
+
+            if (view == null) {
                 statistics = new QualitativeNormalizationStatistics(0L, BigDecimal.ZERO, BigDecimal.ZERO);
+            } else {
+                statistics = new QualitativeNormalizationStatistics(
+                    view.getSampleCount() == null ? 0L : view.getSampleCount(),
+                    view.getMeanScore() == null ? BigDecimal.ZERO : view.getMeanScore(),
+                    view.getStddevScore() == null ? BigDecimal.ZERO : view.getStddevScore()
+                );
             }
         }
         return statistics;

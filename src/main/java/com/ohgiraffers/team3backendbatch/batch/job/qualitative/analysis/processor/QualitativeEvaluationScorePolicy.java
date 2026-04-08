@@ -42,8 +42,8 @@ public class QualitativeEvaluationScorePolicy {
 
     private QualitativeEvaluationScoreResult buildFirstEvaluationResult(QualitativeCommentAnalysis commentAnalysis) {
         return buildScoreResult(
-            commentAnalysis.getOfficialRawScore(),
-            BigDecimal.ZERO.setScale(4)
+            qualitativeScoreCalculator.scaleInternalRawToDisplayScore(commentAnalysis.getOfficialRawScore()),
+            BigDecimal.ZERO.setScale(2)
         );
     }
 
@@ -59,13 +59,14 @@ public class QualitativeEvaluationScorePolicy {
         }
 
         if (secondEvaluationMode == SecondEvaluationMode.KEEP_FIRST_SCORE) {
-            return buildScoreResult(baseRawScore, BigDecimal.ZERO.setScale(4));
+            return buildScoreResult(baseRawScore, BigDecimal.ZERO.setScale(2));
         }
 
         QualitativeCommentAnalysis requiredCommentAnalysis = requireCommentAnalysis(commentAnalysis);
         BigDecimal officialCommentRaw = requiredCommentAnalysis.getOfficialRawScore();
-        BigDecimal adjustmentScore = qualitativeScoreCalculator.calculateSecondaryAdjustmentRaw(officialCommentRaw);
-        BigDecimal finalRawScore = qualitativeScoreCalculator.applyRawAdjustment(baseRawScore, adjustmentScore);
+        BigDecimal internalAdjustmentScore = qualitativeScoreCalculator.calculateSecondaryAdjustmentRaw(officialCommentRaw);
+        BigDecimal adjustmentScore = qualitativeScoreCalculator.scaleInternalAdjustmentToDisplayDelta(internalAdjustmentScore);
+        BigDecimal finalRawScore = qualitativeScoreCalculator.applyDisplayRawAdjustment(baseRawScore, adjustmentScore);
 
         return buildScoreResult(finalRawScore, adjustmentScore);
     }
@@ -74,13 +75,12 @@ public class QualitativeEvaluationScorePolicy {
         BigDecimal finalRawScore,
         BigDecimal adjustmentScore
     ) {
-        BigDecimal normalizedScore = qualitativeScoreCalculator.normalizeToSQual(finalRawScore);
-        String normalizedTier = qualitativeScoreCalculator.classifyTier(normalizedScore);
+        String normalizedTier = qualitativeScoreCalculator.classifyTier(finalRawScore);
 
         return QualitativeEvaluationScoreResult.builder()
             .finalRawScore(finalRawScore)
-            .originalSQual(normalizedScore)
-            .finalSQual(normalizedScore)
+            .originalSQual(finalRawScore)
+            .finalSQual(finalRawScore)
             .adjustmentScore(adjustmentScore)
             .normalizedTier(normalizedTier)
             .build();

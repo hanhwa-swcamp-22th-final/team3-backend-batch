@@ -1,7 +1,8 @@
 package com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.reader;
 
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationTarget;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativeEvaluationQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.entity.QualitativeScoreProjectionEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeScoreProjectionRepository;
 import java.util.Iterator;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -15,18 +16,18 @@ import org.springframework.stereotype.Component;
 @StepScope
 public class QualitativeNormalizationReader implements ItemReader<QualitativeNormalizationTarget> {
 
-    private final QualitativeEvaluationQueryMapper qualitativeEvaluationQueryMapper;
+    private final QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository;
     private final Long requestedEvaluationPeriodId;
     private final boolean force;
     private Long resolvedEvaluationPeriodId;
     private Iterator<QualitativeNormalizationTarget> iterator;
 
     public QualitativeNormalizationReader(
-        QualitativeEvaluationQueryMapper qualitativeEvaluationQueryMapper,
+        QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository,
         @Value("#{jobParameters['evaluationPeriodId']}") Long evaluationPeriodId,
         @Value("#{jobParameters['force']}") String force
     ) {
-        this.qualitativeEvaluationQueryMapper = qualitativeEvaluationQueryMapper;
+        this.qualitativeScoreProjectionRepository = qualitativeScoreProjectionRepository;
         this.requestedEvaluationPeriodId = evaluationPeriodId;
         this.force = Boolean.parseBoolean(force);
     }
@@ -36,7 +37,7 @@ public class QualitativeNormalizationReader implements ItemReader<QualitativeNor
         if (iterator == null) {
             resolvedEvaluationPeriodId = requestedEvaluationPeriodId != null
                 ? requestedEvaluationPeriodId
-                : qualitativeEvaluationQueryMapper.findLatestEvaluationPeriodIdForNormalization();
+                : qualitativeScoreProjectionRepository.findLatestEvaluationPeriodIdForNormalization();
 
             if (resolvedEvaluationPeriodId == null) {
                 log.info(
@@ -48,10 +49,23 @@ public class QualitativeNormalizationReader implements ItemReader<QualitativeNor
                 return null;
             }
 
-            List<QualitativeNormalizationTarget> items = qualitativeEvaluationQueryMapper
-                .findQualitativeEvaluationsForNormalization(resolvedEvaluationPeriodId, force);
+            List<QualitativeScoreProjectionEntity> projections = force
+                ? qualitativeScoreProjectionRepository.findByEvaluationPeriodIdAndRawScoreIsNotNullOrderByEvaluationLevelAscQualitativeEvaluationIdAsc(
+                    resolvedEvaluationPeriodId
+                )
+                : qualitativeScoreProjectionRepository.findByEvaluationPeriodIdAndRawScoreIsNotNullAndNormalizedScoreIsNullOrderByEvaluationLevelAscQualitativeEvaluationIdAsc(
+                    resolvedEvaluationPeriodId
+                );
+
+            List<QualitativeNormalizationTarget> items = projections.stream()
+                .map(projection -> new QualitativeNormalizationTarget(
+                    projection.getQualitativeEvaluationId(),
+                    projection.getRawScore()
+                ))
+                .toList();
+
             log.info(
-                "Loaded qualitative normalization targets. requestedEvaluationPeriodId={}, resolvedEvaluationPeriodId={}, force={}, count={}",
+                "Loaded qualitative normalization targets from projection. requestedEvaluationPeriodId={}, resolvedEvaluationPeriodId={}, force={}, count={}",
                 requestedEvaluationPeriodId,
                 resolvedEvaluationPeriodId,
                 force,

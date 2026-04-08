@@ -24,6 +24,9 @@ public class QualitativeScoreCalculator {
     private static final BigDecimal EPSILON = BigDecimal.valueOf(0.01);
     private static final BigDecimal SECONDARY_ADJUSTMENT_FACTOR = BigDecimal.valueOf(0.5);
     private static final BigDecimal SECONDARY_ADJUSTMENT_CAP = BigDecimal.valueOf(0.5);
+    private static final BigDecimal INTERNAL_RAW_MIN = BigDecimal.valueOf(-1.76);
+    private static final BigDecimal INTERNAL_RAW_MAX = BigDecimal.valueOf(1.76);
+    private static final BigDecimal INTERNAL_RAW_SPAN = INTERNAL_RAW_MAX.subtract(INTERNAL_RAW_MIN);
 
     public BigDecimal calculateChunkScore(
         BigDecimal sentimentScore,
@@ -61,6 +64,21 @@ public class QualitativeScoreCalculator {
     public BigDecimal applyContextWeight(BigDecimal rawScore, BigDecimal contextWeight) {
         BigDecimal effectiveWeight = contextWeight == null ? ONE : contextWeight;
         return rawScore.multiply(effectiveWeight).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    public BigDecimal scaleInternalRawToDisplayScore(BigDecimal internalRawScore) {
+        BigDecimal clampedRaw = clampInternalRawScore(internalRawScore);
+        return clampedRaw.subtract(INTERNAL_RAW_MIN)
+            .multiply(HUNDRED)
+            .divide(INTERNAL_RAW_SPAN, 2, RoundingMode.HALF_UP);
+    }
+
+    public BigDecimal scaleInternalAdjustmentToDisplayDelta(BigDecimal internalAdjustmentScore) {
+        if (internalAdjustmentScore == null) {
+            return ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return internalAdjustmentScore.multiply(HUNDRED)
+            .divide(INTERNAL_RAW_SPAN, 2, RoundingMode.HALF_UP);
     }
 
     public BigDecimal normalizeToSQual(BigDecimal rawScore) {
@@ -104,6 +122,17 @@ public class QualitativeScoreCalculator {
         return baseRawScore.add(adjustmentScore).setScale(4, RoundingMode.HALF_UP);
     }
 
+    public BigDecimal applyDisplayRawAdjustment(BigDecimal baseRawScore, BigDecimal adjustmentScore) {
+        BigDecimal adjusted = baseRawScore.add(adjustmentScore);
+        if (adjusted.compareTo(ZERO) < 0) {
+            return ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (adjusted.compareTo(HUNDRED) > 0) {
+            return HUNDRED.setScale(2, RoundingMode.HALF_UP);
+        }
+        return adjusted.setScale(2, RoundingMode.HALF_UP);
+    }
+
     public String classifyTier(BigDecimal sQual) {
         if (sQual.compareTo(BigDecimal.valueOf(85)) >= 0) {
             return "S";
@@ -115,5 +144,18 @@ public class QualitativeScoreCalculator {
             return "B";
         }
         return "C";
+    }
+
+    private BigDecimal clampInternalRawScore(BigDecimal internalRawScore) {
+        if (internalRawScore == null) {
+            return ZERO.setScale(4, RoundingMode.HALF_UP);
+        }
+        if (internalRawScore.compareTo(INTERNAL_RAW_MIN) < 0) {
+            return INTERNAL_RAW_MIN.setScale(4, RoundingMode.HALF_UP);
+        }
+        if (internalRawScore.compareTo(INTERNAL_RAW_MAX) > 0) {
+            return INTERNAL_RAW_MAX.setScale(4, RoundingMode.HALF_UP);
+        }
+        return internalRawScore.setScale(4, RoundingMode.HALF_UP);
     }
 }
