@@ -62,7 +62,10 @@ public class QuantitativeEvaluationProcessor
             item.getTotalWorkersSameLot(),
             item.getLotDefectThreshold()
         );
-        BigDecimal difficultyAdjustment = quantitativeScoreCalculator.calculateDifficultyAdjustment(item.getDifficultyScore());
+        BigDecimal difficultyAdjustment = quantitativeScoreCalculator.calculateDifficultyAdjustment(
+            item.getDifficultyScore(),
+            item.getDifficultyGrade()
+        );
         BigDecimal resolvedBaselineError = quantitativeScoreCalculator.calculateBaselineError(
             item.getBaselineError(),
             item.getErrorReferenceRate(),
@@ -82,11 +85,17 @@ public class QuantitativeEvaluationProcessor
             resolvedBaselineError,
             materialShielding
         );
-        BigDecimal provisionalSQuant = quantitativeScoreCalculator.calculateProvisionalSQuant(
-            qBase,
+        BigDecimal bonusPoint = quantitativeScoreCalculator.calculateBonusPoint(
+            item.getDifficultyScore(),
+            item.getDifficultyGrade(),
+            item.getCurrentSkillTier()
+        );
+        BigDecimal provisionalSQuant = quantitativeScoreCalculator.calculateProvisionalSQuantFromErrorRate(
+            resolvedActualError,
+            resolvedBaselineError,
             difficultyAdjustment,
-            eIdx,
-            pError
+            bonusPoint,
+            qBase
         );
         BigDecimal environmentCorrection = quantitativeScoreCalculator.resolveMonthlyCorrection(
             item.getEnvironmentCorrection(),
@@ -129,6 +138,7 @@ public class QuantitativeEvaluationProcessor
             .baselineError(resolvedBaselineError)
             .qBase(qBase)
             .eIdx(eIdx)
+            .bonusPoint(bonusPoint)
             .provisionalSQuant(provisionalSQuant)
             .environmentCorrection(environmentCorrection)
             .materialCorrection(materialCorrection)

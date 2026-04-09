@@ -8,18 +8,16 @@
             resultType="com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationSourceRow">
         WITH target_period AS (
             SELECT
-                ep.eval_period_id AS evaluationPeriodId,
-                ep.algorithm_version_id AS algorithmVersionId,
-                ep.eval_year AS evaluationYear,
-                ep.eval_sequence AS evaluationSequence,
-                ep.start_date AS startDate,
-                ep.end_date AS endDate,
-                av.parameters AS parameters,
-                av.reference_values AS referenceValues
-            FROM evaluation_period ep
-            LEFT JOIN algorithm_version av
-              ON av.algorithm_version_id = ep.algorithm_version_id
-            WHERE ep.eval_period_id = #{evaluationPeriodId}
+                qep.evaluation_period_id AS evaluationPeriodId,
+                qep.algorithm_version_id AS algorithmVersionId,
+                qep.evaluation_year AS evaluationYear,
+                qep.evaluation_sequence AS evaluationSequence,
+                qep.start_date AS startDate,
+                qep.end_date AS endDate,
+                qep.parameters AS parameters,
+                qep.reference_values AS referenceValues
+            FROM evaluation_period_projection qep
+            WHERE qep.evaluation_period_id = #{evaluationPeriodId}
         ),
         deployment_scope AS (
             SELECT DISTINCT
@@ -172,6 +170,7 @@
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.lotDefectThreshold')) AS DECIMAL(10, 2)) AS lotDefectThreshold,
             da.difficultyScore AS difficultyScore,
             da.difficultyGrade AS difficultyGrade,
+            ep.employee_tier AS currentSkillTier,
             ba.errorReferenceRate AS errorReferenceRate,
             ba.baselineError AS baselineError,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.monthly.environmentCorrection')) AS DECIMAL(10, 2)) AS environmentCorrection,
@@ -193,6 +192,8 @@
           ON ma.equipmentId = ds.equipmentId
         LEFT JOIN environment_agg ea
           ON ea.equipmentId = ds.equipmentId
+        LEFT JOIN employee_projection ep
+          ON ep.employee_id = ds.employeeId
         LEFT JOIN equipment e
           ON e.equipment_id = ds.equipmentId
         LEFT JOIN environment_standard es

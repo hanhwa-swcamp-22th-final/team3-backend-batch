@@ -80,6 +80,9 @@ public class BatchJobLauncherFacade {
         if (request.getEmployeeId() != null) {
             parameters.put("employeeId", new JobParameter<>(request.getEmployeeId(), Long.class));
         }
+        if (request.getOrderId() != null) {
+            parameters.put("orderId", new JobParameter<>(request.getOrderId(), Long.class));
+        }
         if (request.getQualitativeEvaluationId() != null) {
             parameters.put("qualitativeEvaluationId", new JobParameter<>(request.getQualitativeEvaluationId(), Long.class));
         }

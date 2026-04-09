@@ -1,98 +1,85 @@
 package com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.reader;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.SecondEvaluationMode;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativeEvaluationQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationSubmittedEvent;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 class QualitativeEvaluationReaderTest {
 
-    @Mock
-    private QualitativeEvaluationQueryMapper qualitativeEvaluationQueryMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
-    void read_shouldReturnItemsSequentiallyFromMapperResult() {
-        QualitativeEvaluationAggregate first = new QualitativeEvaluationAggregate(
+    void read_shouldDeserializePayloadIntoAggregate() throws Exception {
+        LocalDateTime occurredAt = LocalDateTime.of(2026, 4, 6, 9, 0);
+        String payload = objectMapper.writeValueAsString(new QualitativeEvaluationSubmittedEvent(
             1L,
             202604L,
             101L,
             201L,
+            301L,
             1L,
             null,
             null,
             "first comment",
             "TEXT",
             "squal-v1",
-            LocalDateTime.now()
-        );
-        QualitativeEvaluationAggregate second = new QualitativeEvaluationAggregate(
-            2L,
-            202604L,
-            101L,
-            202L,
-            2L,
-            SecondEvaluationMode.ANALYZE_COMMENT,
-            BigDecimal.valueOf(1.3200),
-            "second comment",
-            "TEXT",
-            "squal-v1",
-            LocalDateTime.now()
-        );
+            "SUBMITTED",
+            occurredAt,
+            null
+        ));
 
-        when(qualitativeEvaluationQueryMapper.findQualitativeEvaluationsForAnalysis(202604L, 101L, null, false, "squal-v1"))
-            .thenReturn(List.of(first, second));
+        QualitativeEvaluationReader reader = new QualitativeEvaluationReader(objectMapper, payload);
 
-        QualitativeEvaluationReader reader =
-            new QualitativeEvaluationReader(qualitativeEvaluationQueryMapper, 202604L, 101L, null, "false", "squal-v1");
-
-        assertThat(reader.read()).isEqualTo(first);
-        assertThat(reader.read()).isEqualTo(second);
+        QualitativeEvaluationAggregate aggregate = reader.read();
+        assertThat(aggregate.getEvaluationId()).isEqualTo(1L);
+        assertThat(aggregate.getEvaluationPeriodId()).isEqualTo(202604L);
+        assertThat(aggregate.getAlgorithmVersionId()).isEqualTo(101L);
+        assertThat(aggregate.getEmployeeId()).isEqualTo(201L);
+        assertThat(aggregate.getEvaluatorId()).isEqualTo(301L);
+        assertThat(aggregate.getEvaluationLevel()).isEqualTo(1L);
+        assertThat(aggregate.getSecondEvaluationMode()).isNull();
+        assertThat(aggregate.getBaseRawScore()).isNull();
+        assertThat(aggregate.getCommentText()).isEqualTo("first comment");
+        assertThat(aggregate.getInputMethod()).isEqualTo("TEXT");
+        assertThat(aggregate.getAnalysisVersion()).isEqualTo("squal-v1");
+        assertThat(aggregate.getSubmittedAt()).isEqualTo(occurredAt);
+        assertThat(aggregate.getKeywordRules()).isEmpty();
         assertThat(reader.read()).isNull();
-
-        verify(qualitativeEvaluationQueryMapper)
-            .findQualitativeEvaluationsForAnalysis(202604L, 101L, null, false, "squal-v1");
-        verifyNoMoreInteractions(qualitativeEvaluationQueryMapper);
     }
 
     @Test
-    void read_shouldSupportSingleEvaluationLookup() {
-        QualitativeEvaluationAggregate target = new QualitativeEvaluationAggregate(
+    void read_shouldResolveSecondEvaluationModeFromPayload() throws Exception {
+        LocalDateTime occurredAt = LocalDateTime.of(2026, 4, 6, 10, 0);
+        String payload = objectMapper.writeValueAsString(new QualitativeEvaluationSubmittedEvent(
             11L,
             202604L,
             101L,
             201L,
+            301L,
             2L,
-            SecondEvaluationMode.KEEP_FIRST_SCORE,
+            SecondEvaluationMode.KEEP_FIRST_SCORE.name(),
             BigDecimal.valueOf(1.3200),
             null,
             "TEXT",
-            "squal-v1",
-            LocalDateTime.now()
-        );
+            "",
+            "SUBMITTED",
+            occurredAt,
+            null
+        ));
 
-        when(qualitativeEvaluationQueryMapper.findQualitativeEvaluationsForAnalysis(202604L, null, 11L, true, "squal-v1"))
-            .thenReturn(List.of(target));
+        QualitativeEvaluationReader reader = new QualitativeEvaluationReader(objectMapper, payload);
 
-        QualitativeEvaluationReader reader =
-            new QualitativeEvaluationReader(qualitativeEvaluationQueryMapper, 202604L, null, 11L, "true", "squal-v1");
-
-        assertThat(reader.read()).isEqualTo(target);
+        QualitativeEvaluationAggregate aggregate = reader.read();
+        assertThat(aggregate.getEvaluationId()).isEqualTo(11L);
+        assertThat(aggregate.getSecondEvaluationMode()).isEqualTo(SecondEvaluationMode.KEEP_FIRST_SCORE);
+        assertThat(aggregate.getBaseRawScore()).isEqualByComparingTo("1.3200");
+        assertThat(aggregate.getAnalysisVersion()).isEqualTo("squal-v1");
         assertThat(reader.read()).isNull();
-
-        verify(qualitativeEvaluationQueryMapper)
-            .findQualitativeEvaluationsForAnalysis(202604L, null, 11L, true, "squal-v1");
-        verifyNoMoreInteractions(qualitativeEvaluationQueryMapper);
     }
 }

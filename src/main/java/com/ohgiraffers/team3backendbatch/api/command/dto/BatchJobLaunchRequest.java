@@ -15,6 +15,7 @@ public class BatchJobLaunchRequest {
     private BatchPeriodType periodType;
     private Long evaluationPeriodId;
     private Long employeeId;
+    private Long orderId;
     private Long qualitativeEvaluationId;
     private String qualitativeEventPayload;
     private Boolean force;

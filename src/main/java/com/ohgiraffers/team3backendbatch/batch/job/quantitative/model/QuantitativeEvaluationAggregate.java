@@ -63,6 +63,7 @@ public class QuantitativeEvaluationAggregate {
 
     private final BigDecimal difficultyScore;
     private final String difficultyGrade;
+    private final String currentSkillTier;
     private final BigDecimal errorReferenceRate;
     private final BigDecimal baselineError;
     private final BigDecimal environmentCorrection;
@@ -83,6 +84,7 @@ public class QuantitativeEvaluationAggregate {
     private final BigDecimal difficultyAdjustment;
     private final BigDecimal qBase;
     private final BigDecimal eIdx;
+    private final BigDecimal bonusPoint;
     private final BigDecimal provisionalSQuant;
     private final BigDecimal sQuant;
     private final BigDecimal tScore;
@@ -103,6 +105,7 @@ public class QuantitativeEvaluationAggregate {
             .baselineError(result.getBaselineError())
             .qBase(result.getQBase())
             .eIdx(result.getEIdx())
+            .bonusPoint(result.getBonusPoint())
             .provisionalSQuant(result.getProvisionalSQuant())
             .environmentCorrection(result.getEnvironmentCorrection())
             .materialCorrection(result.getMaterialCorrection())

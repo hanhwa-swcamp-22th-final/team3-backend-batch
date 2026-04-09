@@ -114,6 +114,7 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             .lotDefectThreshold(row.getLotDefectThreshold())
             .difficultyScore(row.getDifficultyScore())
             .difficultyGrade(row.getDifficultyGrade())
+            .currentSkillTier(row.getCurrentSkillTier())
             .errorReferenceRate(row.getErrorReferenceRate())
             .baselineError(row.getBaselineError())
             .environmentCorrection(row.getEnvironmentCorrection())
