@@ -85,9 +85,9 @@ class QuantitativeScoreCalculatorTest {
         assertThat(bonusPoint).isEqualByComparingTo("5.00");
         assertThat(effectiveActualError).isEqualByComparingTo("2.80");
         assertThat(provisionalSQuant).isEqualByComparingTo("51.20");
-        assertThat(finalSQuant).isEqualByComparingTo("51.20");
+        assertThat(finalSQuant).isEqualByComparingTo("55.20");
         assertThat(calculator.calculateTScore(finalSQuant, BigDecimal.valueOf(80), BigDecimal.valueOf(10), BatchPeriodType.MONTH))
-            .isEqualByComparingTo("21.20");
+            .isEqualByComparingTo("25.20");
         assertThat(calculator.resolveStatus(BatchPeriodType.MONTH)).isEqualTo("SETTLED");
     }
 

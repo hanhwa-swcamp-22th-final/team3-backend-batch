@@ -302,7 +302,15 @@ public class QuantitativeScoreCalculator {
         BigDecimal antiGamingPenalty,
         BatchPeriodType periodType
     ) {
-        return clampPercentage(provisionalSQuant);
+        if (periodType != BatchPeriodType.MONTH) {
+            return clampPercentage(provisionalSQuant);
+        }
+
+        BigDecimal finalScore = safe(provisionalSQuant)
+            .add(safe(environmentCorrection))
+            .add(safe(materialCorrection))
+            .subtract(safe(antiGamingPenalty));
+        return clampPercentage(finalScore);
     }
 
     public BigDecimal calculateTScore(
