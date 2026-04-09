@@ -12,7 +12,7 @@ import lombok.Getter;
  *
  * The reader builds this object from raw MES/admin reference aggregates.
  * The processor enriches it with provisional metrics and settled score fields.
- * The writer persists the final values to quantitative_evaluation.
+ * The writer publishes the final equipment score payload to HR.
  */
 @Getter
 @Builder(toBuilder = true)

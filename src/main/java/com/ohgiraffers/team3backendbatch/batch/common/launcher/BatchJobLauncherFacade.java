@@ -83,6 +83,15 @@ public class BatchJobLauncherFacade {
         if (request.getOrderId() != null) {
             parameters.put("orderId", new JobParameter<>(request.getOrderId(), Long.class));
         }
+        if (request.getAnalysisReferenceDate() != null) {
+            parameters.put(
+                "analysisReferenceDate",
+                new JobParameter<>(request.getAnalysisReferenceDate().toString(), String.class)
+            );
+        }
+        if (request.getOrderEventPayload() != null) {
+            parameters.put("orderEventPayload", new JobParameter<>(request.getOrderEventPayload(), String.class));
+        }
         if (request.getQualitativeEvaluationId() != null) {
             parameters.put("qualitativeEvaluationId", new JobParameter<>(request.getQualitativeEvaluationId(), Long.class));
         }

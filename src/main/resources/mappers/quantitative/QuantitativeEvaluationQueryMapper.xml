@@ -21,15 +21,15 @@
         ),
         deployment_scope AS (
             SELECT DISTINCT
-                wd.employee_id AS employeeId,
-                wd.equipment_id AS equipmentId
-            FROM worker_deployment wd
+                wdp.employee_id AS employeeId,
+                wdp.equipment_id AS equipmentId
+            FROM worker_deployment_projection wdp
             JOIN target_period tp
-              ON wd.start_date &lt;= tp.endDate
-             AND (wd.end_date IS NULL OR wd.end_date &gt;= tp.startDate)
-            WHERE wd.worker_deployment_role = 'PRIMARY'
+              ON wdp.start_date &lt;= tp.endDate
+             AND (wdp.end_date IS NULL OR wdp.end_date &gt;= tp.startDate)
+            WHERE wdp.worker_deployment_role = 'PRIMARY'
               <if test="employeeId != null">
-                  AND wd.employee_id = #{employeeId}
+                  AND wdp.employee_id = #{employeeId}
               </if>
         ),
         production_agg AS (
@@ -71,11 +71,13 @@
                     * mis.maintenance_weight * 100
                 ) AS maintenanceWeightedScoreSum,
                 SUM(mis.maintenance_weight) AS maintenanceWeightSum
-            FROM maintenance_log ml
-            JOIN maintenance_item_standard mis
+            FROM maintenance_log_projection ml
+            JOIN maintenance_item_standard_projection mis
               ON mis.maintenance_item_standard_id = ml.maintenance_item_standard_id
             JOIN target_period tp
               ON ml.maintenance_date BETWEEN tp.startDate AND tp.endDate
+            WHERE COALESCE(ml.deleted, 0) = 0
+              AND COALESCE(mis.deleted, 0) = 0
             GROUP BY ml.equipment_id
         ),
         environment_agg AS (
@@ -84,39 +86,24 @@
                 AVG(ee.env_temperature) AS environmentTemperature,
                 AVG(ee.env_humidity) AS environmentHumidity,
                 AVG(ee.env_particle_cnt) AS environmentParticleCount
-            FROM environment_event ee
+            FROM environment_event_projection ee
             JOIN target_period tp
               ON DATE(ee.env_detected_at) BETWEEN tp.startDate AND tp.endDate
+            WHERE COALESCE(ee.deleted, 0) = 0
             GROUP BY ee.equipment_id
-        ),
-        baseline_agg AS (
-            SELECT
-                eb.equipment_id AS equipmentId,
-                eb.equipment_standard_performance_rate AS targetUph,
-                eb.equipment_baseline_error_rate AS errorReferenceRate,
-                eb.equipment_baseline_error_rate AS baselineError
-            FROM equipment_baseline eb
-            JOIN (
-                SELECT
-                    equipment_id,
-                    MAX(COALESCE(equipment_baseline_calculated_at, TIMESTAMP('1970-01-01 00:00:00'))) AS latestCalculatedAt
-                FROM equipment_baseline
-                GROUP BY equipment_id
-            ) latest
-              ON latest.equipment_id = eb.equipment_id
-             AND COALESCE(eb.equipment_baseline_calculated_at, TIMESTAMP('1970-01-01 00:00:00')) = latest.latestCalculatedAt
         ),
         difficulty_agg AS (
             SELECT
-                mr.employee_id AS employeeId,
-                AVG(o.difficulty_score) AS difficultyScore,
-                MAX(o.difficulty_grade) AS difficultyGrade
-            FROM matching_record mr
-            JOIN orders o
-              ON o.order_id = mr.order_id
+                oap.employee_id AS employeeId,
+                AVG(odp.difficulty_score) AS difficultyScore,
+                MAX(odp.difficulty_grade) AS difficultyGrade
+            FROM order_assignment_projection oap
+            JOIN order_difficulty_projection odp
+              ON odp.order_id = oap.order_id
             JOIN target_period tp
-              ON DATE(COALESCE(mr.created_at, o.created_at)) BETWEEN tp.startDate AND tp.endDate
-            GROUP BY mr.employee_id
+              ON DATE(COALESCE(oap.assigned_at, oap.occurred_at)) BETWEEN tp.startDate AND tp.endDate
+            WHERE odp.difficulty_score IS NOT NULL
+            GROUP BY oap.employee_id
         ),
         anti_gaming AS (
             SELECT
@@ -142,26 +129,26 @@
             sa.downtimeMinutes AS downtimeMinutes,
             sa.maintenanceMinutes AS maintenanceMinutes,
             COALESCE(
-                ba.targetUph,
+                erp.equipment_standard_performance_rate,
                 CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.referenceValues, '$.targetUph')) AS DECIMAL(10, 2))
             ) AS targetUph,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.referenceValues, '$.targetYieldRate')) AS DECIMAL(10, 2)) AS targetYieldRate,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.referenceValues, '$.targetLeadTimeSec')) AS DECIMAL(10, 2)) AS targetLeadTimeSec,
-            DATE(e.equipment_install_date) AS equipmentInstallDate,
-            e.equipment_grade AS equipmentGrade,
-            eag.equipment_warranty_month AS equipmentWarrantyMonths,
-            eag.equipment_design_life_months AS equipmentDesignLifeMonths,
-            eag.equipment_wear_coefficient AS equipmentWearCoefficient,
+            DATE(erp.equipment_install_date) AS equipmentInstallDate,
+            erp.equipment_grade AS equipmentGrade,
+            erp.equipment_warranty_month AS equipmentWarrantyMonths,
+            erp.equipment_design_life_months AS equipmentDesignLifeMonths,
+            erp.equipment_wear_coefficient AS equipmentWearCoefficient,
             ma.maintenanceWeightedScoreSum AS maintenanceWeightedScoreSum,
             ma.maintenanceWeightSum AS maintenanceWeightSum,
             ea.environmentTemperature AS environmentTemperature,
             ea.environmentHumidity AS environmentHumidity,
             ea.environmentParticleCount AS environmentParticleCount,
-            es.env_temp_min AS environmentTempMin,
-            es.env_temp_max AS environmentTempMax,
-            es.env_humidity_min AS environmentHumidityMin,
-            es.env_humidity_max AS environmentHumidityMax,
-            es.env_particle_limit AS environmentParticleLimit,
+            erp.env_temp_min AS environmentTempMin,
+            erp.env_temp_max AS environmentTempMax,
+            erp.env_humidity_min AS environmentHumidityMin,
+            erp.env_humidity_max AS environmentHumidityMax,
+            erp.env_particle_limit AS environmentParticleLimit,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.environment.tempWeight')) AS DECIMAL(10, 2)) AS environmentTempWeight,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.environment.humidityWeight')) AS DECIMAL(10, 2)) AS environmentHumidityWeight,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.environment.particleWeight')) AS DECIMAL(10, 2)) AS environmentParticleWeight,
@@ -171,8 +158,8 @@
             da.difficultyScore AS difficultyScore,
             da.difficultyGrade AS difficultyGrade,
             ep.employee_tier AS currentSkillTier,
-            ba.errorReferenceRate AS errorReferenceRate,
-            ba.baselineError AS baselineError,
+            erp.equipment_baseline_error_rate AS errorReferenceRate,
+            erp.equipment_baseline_error_rate AS baselineError,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.monthly.environmentCorrection')) AS DECIMAL(10, 2)) AS environmentCorrection,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.monthly.materialCorrection')) AS DECIMAL(10, 2)) AS materialCorrection,
             ag.antiGamingPenalty AS antiGamingPenalty,
@@ -194,14 +181,9 @@
           ON ea.equipmentId = ds.equipmentId
         LEFT JOIN employee_projection ep
           ON ep.employee_id = ds.employeeId
-        LEFT JOIN equipment e
-          ON e.equipment_id = ds.equipmentId
-        LEFT JOIN environment_standard es
-          ON es.environment_standard_id = e.environment_standard_id
-        LEFT JOIN equipment_aging_param eag
-          ON eag.equipment_id = ds.equipmentId
-        LEFT JOIN baseline_agg ba
-          ON ba.equipmentId = ds.equipmentId
+        LEFT JOIN equipment_reference_projection erp
+          ON erp.equipment_id = ds.equipmentId
+         AND COALESCE(erp.deleted, 0) = 0
         LEFT JOIN difficulty_agg da
           ON da.employeeId = ds.employeeId
         LEFT JOIN anti_gaming ag
