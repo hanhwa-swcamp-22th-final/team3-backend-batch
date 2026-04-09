@@ -1,0 +1,13 @@
+spring:
+  config:
+    activate:
+      on-profile: schedule-test
+
+batch:
+  schedule:
+    enabled: true
+    zone: Asia/Seoul
+    quantitative-cron: "0 0 1 1 1 *"
+    qualitative-normalization-cron: "*/30 * * * * *"
+    score-cron: "0 5 1 1 1 *"
+    promotion-cron: "0 10 1 1 1 *"

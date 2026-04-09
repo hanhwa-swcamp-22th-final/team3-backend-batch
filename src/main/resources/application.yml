@@ -1,6 +1,9 @@
+server:
+  port: 8084
+
 spring:
   application:
-    name: team3-backend-admin
+    name: team3-backend-batch
 
   profiles:
     include: db, secret
@@ -17,13 +20,53 @@ spring:
         format_sql: true
     show-sql: true
 
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
+
+  kafka:
+    # Kafka broker address list (hostname:port)
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    consumer:
+      # Consumer group id for batch listeners
+      group-id: ${BATCH_KAFKA_CONSUMER_GROUP_ID:team3-batch}
+
+      # Read from the earliest offset when no committed offset exists
+      auto-offset-reset: earliest
+
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+
+      properties:
+        # Allow JSON deserialization for trusted packages in local development
+        spring.json.trusted.packages: "*"
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 mybatis:
   mapper-locations: classpath:mappers/**/*.xml
-  type-aliases-package: com.ohgiraffers.team3backendadmin
+  type-aliases-package: com.ohgiraffers.team3backendbatch
   configuration:
     map-underscore-to-camel-case: true
 
-# JWT
 jwt:
-  expiration: 1800000 # 30 minutes
-  refresh-expiration: 604800000 # 7 days
+  expiration: 1800000
+  refresh-expiration: 604800000
+
+batch:
+  schedule:
+    enabled: ${BATCH_SCHEDULE_ENABLED:false}
+    zone: ${BATCH_SCHEDULE_ZONE:Asia/Seoul}
+    quantitative-cron: ${BATCH_SCHEDULE_QUANTITATIVE_CRON:0 0 1 * * *}
+    qualitative-normalization-cron: ${BATCH_SCHEDULE_QUALITATIVE_NORMALIZATION_CRON:0 15 1 1 * *}
+    score-cron: ${BATCH_SCHEDULE_SCORE_CRON:0 30 1 * * *}
+    promotion-cron: ${BATCH_SCHEDULE_PROMOTION_CRON:0 0 2 * * *}
+
+nlp:
+  google:
+    credentials-location: classpath:gcp-key.json
