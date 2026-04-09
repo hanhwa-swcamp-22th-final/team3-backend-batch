@@ -14,7 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "qualitative_period_summary_projection")
+@Table(catalog = "batch_projection", name = "qualitative_period_summary_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class QualitativePeriodSummaryProjectionEntity {

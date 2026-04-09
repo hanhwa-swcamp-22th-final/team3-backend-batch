@@ -42,6 +42,7 @@ class QuantitativeEvaluationProcessorTest {
         assertThat(result.getNAge()).isEqualByComparingTo("0.00");
         assertThat(result.getEtaAge()).isEqualByComparingTo("1.00");
         assertThat(result.getNMaint()).isEqualByComparingTo("1.00");
+        assertThat(result.getEtaMaint()).isEqualByComparingTo("1.00");
         assertThat(result.getNEnv()).isEqualByComparingTo("0.00");
         assertThat(result.getMaterialShielding()).isEqualByComparingTo("0.00");
         assertThat(result.getUphScore()).isEqualByComparingTo("100.00");
@@ -52,8 +53,8 @@ class QuantitativeEvaluationProcessorTest {
         assertThat(result.getEIdx()).isEqualByComparingTo("1.00");
         assertThat(result.getBonusPoint()).isEqualByComparingTo("5.00");
         assertThat(result.getProvisionalSQuant()).isEqualByComparingTo("27.00");
-        assertThat(result.getSQuant()).isEqualByComparingTo("31.00");
-        assertThat(result.getTScore()).isEqualByComparingTo("31.00");
+        assertThat(result.getSQuant()).isEqualByComparingTo("27.00");
+        assertThat(result.getTScore()).isEqualByComparingTo("27.00");
         assertThat(result.getStatus()).isEqualTo("SETTLED");
     }
 }

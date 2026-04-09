@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "equipment_reference_projection")
+@Table(catalog = "batch_projection", name = "equipment_reference_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class EquipmentReferenceProjectionEntity {

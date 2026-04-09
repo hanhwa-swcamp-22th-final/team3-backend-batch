@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "evaluation_period_projection")
+@Table(catalog = "batch_projection", name = "evaluation_period_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class EvaluationPeriodProjectionEntity {
@@ -22,7 +22,7 @@ public class EvaluationPeriodProjectionEntity {
     @Column(name = "evaluation_period_id")
     private Long evaluationPeriodId;
 
-    @Column(name = "algorithm_version_id", nullable = false)
+    @Column(name = "algorithm_version_id")
     private Long algorithmVersionId;
 
     @Column(name = "evaluation_year", nullable = false)

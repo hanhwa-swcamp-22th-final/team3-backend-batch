@@ -14,6 +14,7 @@ public class QuantitativeCalculationResult {
     private final BigDecimal nAge;
     private final BigDecimal etaAge;
     private final BigDecimal nMaint;
+    private final BigDecimal etaMaint;
     private final BigDecimal nEnv;
     private final BigDecimal materialShielding;
     private final BigDecimal uphScore;

@@ -22,7 +22,7 @@ public interface QualitativeScoreProjectionRepository extends JpaRepository<Qual
     @Query(
         value = """
             SELECT q.evaluation_period_id
-            FROM qualitative_score_projection q
+            FROM batch_projection.qualitative_score_projection q
             WHERE q.raw_score IS NOT NULL
               AND q.normalized_score IS NULL
             GROUP BY q.evaluation_period_id
@@ -39,7 +39,7 @@ public interface QualitativeScoreProjectionRepository extends JpaRepository<Qual
                 COUNT(q.raw_score) AS sampleCount,
                 COALESCE(AVG(q.raw_score), 0) AS meanScore,
                 COALESCE(STDDEV_SAMP(q.raw_score), 0) AS stddevScore
-            FROM qualitative_score_projection q
+            FROM batch_projection.qualitative_score_projection q
             WHERE q.evaluation_period_id = :evaluationPeriodId
               AND q.raw_score IS NOT NULL
             """,
@@ -47,9 +47,40 @@ public interface QualitativeScoreProjectionRepository extends JpaRepository<Qual
     )
     QualitativeScoreProjectionStatisticsView findNormalizationStatistics(@Param("evaluationPeriodId") Long evaluationPeriodId);
 
+    @Query(
+        value = """
+            SELECT
+                selected.evaluatee_id AS employeeId,
+                selected.normalized_score AS normalizedScore
+            FROM batch_projection.qualitative_score_projection selected
+            JOIN (
+                SELECT
+                    q.evaluatee_id AS employeeId,
+                    MAX(q.evaluation_level) AS latestEvaluationLevel
+                FROM batch_projection.qualitative_score_projection q
+                WHERE q.evaluation_period_id = :evaluationPeriodId
+                  AND q.normalized_score IS NOT NULL
+                GROUP BY q.evaluatee_id
+            ) latest
+              ON latest.employeeId = selected.evaluatee_id
+             AND latest.latestEvaluationLevel = selected.evaluation_level
+            WHERE selected.evaluation_period_id = :evaluationPeriodId
+            ORDER BY selected.evaluatee_id
+            """,
+        nativeQuery = true
+    )
+    List<MonthlyQualitativeScoreView> findLatestNormalizedScoresByEvaluationPeriodId(
+        @Param("evaluationPeriodId") Long evaluationPeriodId
+    );
+
     interface QualitativeScoreProjectionStatisticsView {
         Long getSampleCount();
         java.math.BigDecimal getMeanScore();
         java.math.BigDecimal getStddevScore();
+    }
+
+    interface MonthlyQualitativeScoreView {
+        Long getEmployeeId();
+        java.math.BigDecimal getNormalizedScore();
     }
 }

@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "worker_deployment_projection")
+@Table(catalog = "batch_projection", name = "worker_deployment_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class WorkerDeploymentProjectionEntity {

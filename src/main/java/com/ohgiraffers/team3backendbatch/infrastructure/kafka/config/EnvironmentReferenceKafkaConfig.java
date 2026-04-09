@@ -1,6 +1,6 @@
 package com.ohgiraffers.team3backendbatch.infrastructure.kafka.config;
 
-import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.EnvironmentEventSnapshotEvent;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.EnvironmentStandardSnapshotEvent;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -25,14 +25,14 @@ public class EnvironmentReferenceKafkaConfig {
     private String groupId;
 
     @Bean
-    public ConsumerFactory<String, EnvironmentEventSnapshotEvent> environmentEventSnapshotConsumerFactory() {
+    public ConsumerFactory<String, EnvironmentStandardSnapshotEvent> environmentStandardSnapshotConsumerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, groupId + "-environment");
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, groupId + "-environment-standard");
         config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        JsonDeserializer<EnvironmentEventSnapshotEvent> deserializer =
-            new JsonDeserializer<>(EnvironmentEventSnapshotEvent.class);
+        JsonDeserializer<EnvironmentStandardSnapshotEvent> deserializer =
+            new JsonDeserializer<>(EnvironmentStandardSnapshotEvent.class);
         deserializer.ignoreTypeHeaders();
         deserializer.addTrustedPackages(
             "com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto",
@@ -43,11 +43,11 @@ public class EnvironmentReferenceKafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, EnvironmentEventSnapshotEvent>
-    environmentEventSnapshotKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, EnvironmentEventSnapshotEvent> factory =
+    public ConcurrentKafkaListenerContainerFactory<String, EnvironmentStandardSnapshotEvent>
+    environmentStandardSnapshotKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, EnvironmentStandardSnapshotEvent> factory =
             new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(environmentEventSnapshotConsumerFactory());
+        factory.setConsumerFactory(environmentStandardSnapshotConsumerFactory());
         return factory;
     }
 }

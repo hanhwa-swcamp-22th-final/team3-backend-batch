@@ -27,16 +27,17 @@ public class QuantitativeScoreCalculator {
     private static final BigDecimal DEFAULT_PARTICLE_WEIGHT = BigDecimal.valueOf(0.30);
     private static final BigDecimal DEFAULT_LOT_THRESHOLD = BigDecimal.valueOf(0.60);
 
+    private static final BigDecimal AGE_DECAY_LAMBDA = BigDecimal.valueOf(1.00);
+    private static final BigDecimal MAINT_DECAY_LAMBDA = BigDecimal.valueOf(1.20);
     private static final BigDecimal AGE_FACTOR = BigDecimal.valueOf(0.12);
     private static final BigDecimal MAINT_FACTOR = BigDecimal.valueOf(0.08);
     private static final BigDecimal ENV_FACTOR = BigDecimal.valueOf(0.05);
     private static final BigDecimal MATERIAL_FACTOR = BigDecimal.valueOf(0.10);
     private static final BigDecimal EIDX_MAX = BigDecimal.valueOf(1.30);
-    private static final BigDecimal MIN_ETA_AGE = BigDecimal.valueOf(0.60);
     private static final BigDecimal BASELINE_AGE_FACTOR = BigDecimal.valueOf(0.50);
-    private static final BigDecimal PENALTY_SCALE = BigDecimal.TEN;
-    private static final BigDecimal CHALLENGE_RATIO_MAX = BigDecimal.valueOf(1.50);
-    private static final BigDecimal CHALLENGE_BONUS_SCALE = BigDecimal.valueOf(40);
+    private static final BigDecimal SHIELDING_RELIEF = BigDecimal.valueOf(0.30);
+    private static final BigDecimal CHALLENGE_BONUS_SCALE = BigDecimal.valueOf(50);
+    private static final BigDecimal CHALLENGE_BONUS_CAP = BigDecimal.valueOf(20);
 
     public BigDecimal resolveActualError(BigDecimal actualError, BigDecimal totalDefectQty, BigDecimal totalInputQty) {
         if (isPositive(actualError)) {
@@ -98,9 +99,11 @@ public class QuantitativeScoreCalculator {
         if (equipmentWearCoefficient == null || nAge == null) {
             return scale(ONE);
         }
-        double exponent = -safeRatio(equipmentWearCoefficient).doubleValue() * safeRatio(nAge).doubleValue();
+        double exponent = -AGE_DECAY_LAMBDA.doubleValue()
+            * safeRatio(equipmentWearCoefficient).doubleValue()
+            * safeRatio(nAge).doubleValue();
         BigDecimal etaAge = BigDecimal.valueOf(Math.exp(exponent));
-        return scale(etaAge.max(MIN_ETA_AGE).min(ONE));
+        return clampRatio(etaAge);
     }
 
     public BigDecimal calculateNMaint(BigDecimal maintenanceWeightedScoreSum, BigDecimal maintenanceWeightSum) {
@@ -111,6 +114,16 @@ public class QuantitativeScoreCalculator {
             .divide(maintenanceWeightSum, 4, RoundingMode.HALF_UP)
             .divide(HUNDRED, 4, RoundingMode.HALF_UP);
         return clampRatio(normalized);
+    }
+
+    public BigDecimal calculateEtaMaint(BigDecimal maintenanceScoreNorm) {
+        if (maintenanceScoreNorm == null) {
+            return scale(ONE);
+        }
+        BigDecimal normalized = clampRatio(maintenanceScoreNorm);
+        double exponent = -MAINT_DECAY_LAMBDA.doubleValue() * ONE.subtract(normalized).doubleValue();
+        BigDecimal etaMaint = BigDecimal.valueOf(Math.exp(exponent));
+        return clampRatio(etaMaint);
     }
 
     public BigDecimal calculateNEnv(
@@ -165,7 +178,7 @@ public class QuantitativeScoreCalculator {
         String equipmentGrade,
         BigDecimal nAge,
         BigDecimal etaAge,
-        BigDecimal nMaint,
+        BigDecimal etaMaint,
         BigDecimal nEnv,
         BigDecimal materialShielding
     ) {
@@ -175,7 +188,7 @@ public class QuantitativeScoreCalculator {
 
         BigDecimal eIdx = ONE
             .add(AGE_FACTOR.multiply(ONE.subtract(safeRatio(etaAge))))
-            .add(MAINT_FACTOR.multiply(ONE.subtract(safeRatio(nMaint))))
+            .add(MAINT_FACTOR.multiply(ONE.subtract(safeRatio(etaMaint))))
             .add(ENV_FACTOR.multiply(safeRatio(nEnv)))
             .add(MATERIAL_FACTOR.multiply(safeRatio(materialShielding)));
 
@@ -205,6 +218,13 @@ public class QuantitativeScoreCalculator {
         return scale(calculated);
     }
 
+    public BigDecimal calculateAdjustedBaselineError(BigDecimal baselineError, BigDecimal eIdx) {
+        if (!isPositive(baselineError)) {
+            return ZERO;
+        }
+        return scale(baselineError.multiply(positiveOrDefault(eIdx, ONE)));
+    }
+
     public BigDecimal calculateQBase(BigDecimal uphScore, BigDecimal yieldScore, BigDecimal leadTimeScore) {
         BigDecimal qBase = safe(uphScore).multiply(UPH_WEIGHT)
             .add(safe(yieldScore).multiply(YIELD_WEIGHT))
@@ -212,32 +232,12 @@ public class QuantitativeScoreCalculator {
         return clampPercentage(qBase);
     }
 
-    public BigDecimal calculatePError(BigDecimal actualError, BigDecimal baselineError, BigDecimal materialShielding) {
-        if (!isPositive(actualError) || !isPositive(baselineError)) {
+    public BigDecimal calculateEffectiveActualError(BigDecimal actualError, BigDecimal materialShielding) {
+        if (!isPositive(actualError)) {
             return ZERO;
         }
-        BigDecimal delta = actualError.subtract(baselineError);
-        if (delta.compareTo(BigDecimal.ZERO) <= 0) {
-            return ZERO;
-        }
-        BigDecimal penalty = delta
-            .divide(baselineError.max(EPSILON), 4, RoundingMode.HALF_UP)
-            .multiply(PENALTY_SCALE)
-            .multiply(ONE.subtract(safeRatio(materialShielding)));
-        return scale(penalty.max(BigDecimal.ZERO));
-    }
-
-    public BigDecimal calculateProvisionalSQuant(
-        BigDecimal qBase,
-        BigDecimal difficultyAdjustment,
-        BigDecimal eIdx,
-        BigDecimal pError
-    ) {
-        BigDecimal raw = safe(qBase)
-            .multiply(positiveOrDefault(difficultyAdjustment, ONE))
-            .multiply(positiveOrDefault(eIdx, ONE))
-            .subtract(safe(pError));
-        return clampPercentage(raw);
+        BigDecimal effectiveError = actualError.multiply(ONE.subtract(SHIELDING_RELIEF.multiply(safeRatio(materialShielding))));
+        return scale(effectiveError.max(BigDecimal.ZERO));
     }
 
     public BigDecimal calculateBonusPoint(BigDecimal difficultyScore, String difficultyGrade, String currentSkillTier) {
@@ -248,34 +248,30 @@ public class QuantitativeScoreCalculator {
             return ZERO;
         }
 
-        BigDecimal challengeRatio = difficultyCapability
-            .divide(workerCapability.max(EPSILON), 4, RoundingMode.HALF_UP)
-            .max(ONE)
-            .min(CHALLENGE_RATIO_MAX);
-
-        if (challengeRatio.compareTo(ONE) <= 0) {
+        BigDecimal capabilityGap = difficultyCapability.subtract(workerCapability);
+        if (capabilityGap.compareTo(BigDecimal.ZERO) <= 0) {
             return ZERO;
         }
 
-        return scale(challengeRatio.subtract(ONE).multiply(CHALLENGE_BONUS_SCALE));
+        return scale(capabilityGap.multiply(CHALLENGE_BONUS_SCALE).min(CHALLENGE_BONUS_CAP));
     }
 
     public BigDecimal calculateProvisionalSQuantFromErrorRate(
-        BigDecimal actualError,
-        BigDecimal baselineError,
+        BigDecimal effectiveActualError,
+        BigDecimal adjustedBaselineError,
         BigDecimal difficultyAdjustment,
         BigDecimal bonusPoint,
         BigDecimal fallbackBaseScore
     ) {
         BigDecimal normalizedDifficulty = positiveOrDefault(difficultyAdjustment, ONE);
 
-        if (!isPositive(baselineError)) {
-            BigDecimal fallback = safe(fallbackBaseScore).multiply(normalizedDifficulty).add(safe(bonusPoint));
+        if (!isPositive(adjustedBaselineError)) {
+            BigDecimal fallback = safe(fallbackBaseScore).add(safe(bonusPoint));
             return clampPercentage(fallback);
         }
 
-        BigDecimal errorImprovementScore = baselineError.subtract(safe(actualError))
-            .divide(baselineError.max(EPSILON), 4, RoundingMode.HALF_UP)
+        BigDecimal errorImprovementScore = adjustedBaselineError.subtract(safe(effectiveActualError))
+            .divide(adjustedBaselineError.max(EPSILON), 4, RoundingMode.HALF_UP)
             .multiply(HUNDRED);
 
         BigDecimal raw = errorImprovementScore
@@ -306,14 +302,7 @@ public class QuantitativeScoreCalculator {
         BigDecimal antiGamingPenalty,
         BatchPeriodType periodType
     ) {
-        if (periodType != BatchPeriodType.MONTH) {
-            return clampPercentage(provisionalSQuant);
-        }
-        BigDecimal settled = safe(provisionalSQuant)
-            .add(safe(environmentCorrection))
-            .add(safe(materialCorrection))
-            .subtract(safe(antiGamingPenalty));
-        return clampPercentage(settled);
+        return clampPercentage(provisionalSQuant);
     }
 
     public BigDecimal calculateTScore(

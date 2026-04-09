@@ -10,7 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "order_assignment_projection")
+@Table(catalog = "batch_projection", name = "order_assignment_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderAssignmentProjectionEntity {
