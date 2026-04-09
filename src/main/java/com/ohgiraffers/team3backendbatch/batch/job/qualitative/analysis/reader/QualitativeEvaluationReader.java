@@ -1,7 +1,12 @@
 package com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.reader;
-import java.util.Iterator;
-import java.util.List;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeEvaluationAggregate;
+import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.SecondEvaluationMode;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.QualitativeKeywordRule;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationSubmittedEvent;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -9,67 +14,88 @@ import org.springframework.batch.item.ItemReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeEvaluationAggregate;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativeEvaluationQueryMapper;
 @Component
 @StepScope
 public class QualitativeEvaluationReader implements ItemReader<QualitativeEvaluationAggregate> {
 
     private static final Logger log = LoggerFactory.getLogger(QualitativeEvaluationReader.class);
-    private final QualitativeEvaluationQueryMapper qualitativeEvaluationQueryMapper;
-    private final Long evaluationPeriodId;
-    private final Long employeeId;
-    private final Long qualitativeEvaluationId;
-    private final boolean force;
-    private final String analysisVersion;
-    private Iterator<QualitativeEvaluationAggregate> iterator;
+    private static final String DEFAULT_ANALYSIS_VERSION = "squal-v1";
 
-    /**
-     * 실행 시 전달된 job parameter를 기준으로 어떤 평가 건을 읽을지 결정한다.
-     */
+    private final ObjectMapper objectMapper;
+    private final String qualitativeEventPayload;
+    private boolean consumed;
+
     public QualitativeEvaluationReader(
-        QualitativeEvaluationQueryMapper qualitativeEvaluationQueryMapper,
-        @Value("#{jobParameters['evaluationPeriodId']}") Long evaluationPeriodId,
-        @Value("#{jobParameters['employeeId']}") Long employeeId,
-        @Value("#{jobParameters['qualitativeEvaluationId']}") Long qualitativeEvaluationId,
-        @Value("#{jobParameters['force']}") String force,
-        @Value("#{jobParameters['analysisVersion']}") String analysisVersion) {
-        this.qualitativeEvaluationQueryMapper = qualitativeEvaluationQueryMapper;
-        this.evaluationPeriodId = evaluationPeriodId;
-        this.employeeId = employeeId;
-        this.qualitativeEvaluationId = qualitativeEvaluationId;
-        this.force = Boolean.parseBoolean(force);
-        this.analysisVersion = analysisVersion != null ? analysisVersion : "squal-v1";
-        }
+        ObjectMapper objectMapper,
+        @Value("#{jobParameters['qualitativeEventPayload']}") String qualitativeEventPayload
+    ) {
+        this.objectMapper = objectMapper;
+        this.qualitativeEventPayload = qualitativeEventPayload;
+    }
 
-    /**
-     * 분석 대상 목록을 최초 1회 조회한 뒤, 호출될 때마다 한 건씩 반환한다.
-     * 더 이상 대상이 없으면 null을 반환해 step 종료를 알린다.
-     */
     @Override
     public QualitativeEvaluationAggregate read() {
-        if (iterator == null) {
-            List<QualitativeEvaluationAggregate> evaluations =
-                qualitativeEvaluationQueryMapper.findQualitativeEvaluationsForAnalysis(
-                    evaluationPeriodId,
-                    employeeId,
-                    qualitativeEvaluationId,
-                    force,
-                    analysisVersion
-                );
-            iterator = evaluations.iterator();
-            log.info(
-                "Loaded qualitative evaluations. evaluationPeriodId={}, employeeId={}, qualitativeEvaluationId={}, force={}, count={}",
-                evaluationPeriodId,
-                employeeId,
-                qualitativeEvaluationId,
-                force,
-                evaluations.size()
-            );
-        }
-        if (!iterator.hasNext()) {
+        if (consumed) {
             return null;
         }
-        return iterator.next();
+        consumed = true;
+
+        if (qualitativeEventPayload == null || qualitativeEventPayload.isBlank()) {
+            throw new IllegalStateException("qualitativeEventPayload job parameter is required for qualitative analysis.");
+        }
+
+        QualitativeEvaluationSubmittedEvent event = deserializePayload();
+        QualitativeEvaluationAggregate aggregate = new QualitativeEvaluationAggregate(
+            event.getQualitativeEvaluationId(),
+            event.getEvaluationPeriodId(),
+            event.getAlgorithmVersionId(),
+            event.getEvaluateeId(),
+            event.getEvaluatorId(),
+            event.getEvaluationLevel(),
+            resolveSecondEvaluationMode(event),
+            event.getBaseRawScore(),
+            event.getEvalComment(),
+            event.getInputMethod(),
+            event.getAnalysisVersion() == null || event.getAnalysisVersion().isBlank()
+                ? DEFAULT_ANALYSIS_VERSION
+                : event.getAnalysisVersion(),
+            event.getOccurredAt(),
+            toKeywordRules(event)
+        );
+
+        log.info(
+            "Loaded qualitative evaluation from event payload. evaluationId={}, periodId={}, level={}, keywordRuleCount={}",
+            aggregate.getEvaluationId(),
+            aggregate.getEvaluationPeriodId(),
+            aggregate.getEvaluationLevel(),
+            aggregate.getKeywordRules().size()
+        );
+        return aggregate;
+    }
+
+    private QualitativeEvaluationSubmittedEvent deserializePayload() {
+        try {
+            return objectMapper.readValue(qualitativeEventPayload, QualitativeEvaluationSubmittedEvent.class);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to deserialize qualitative submitted event payload.", exception);
+        }
+    }
+
+    private SecondEvaluationMode resolveSecondEvaluationMode(QualitativeEvaluationSubmittedEvent event) {
+        if (event.getSecondEvaluationMode() == null || event.getSecondEvaluationMode().isBlank()) {
+            return null;
+        }
+        return SecondEvaluationMode.valueOf(event.getSecondEvaluationMode());
+    }
+
+    private List<QualitativeKeywordRule> toKeywordRules(QualitativeEvaluationSubmittedEvent event) {
+        if (event.getKeywordRules() == null || event.getKeywordRules().isEmpty()) {
+            return List.of();
+        }
+        return event.getKeywordRules().stream()
+            .filter(rule -> rule.getKeyword() != null && !rule.getKeyword().isBlank())
+            .filter(rule -> rule.getScoreWeight() != null)
+            .map(rule -> new QualitativeKeywordRule(rule.getKeyword(), rule.getScoreWeight()))
+            .toList();
     }
 }

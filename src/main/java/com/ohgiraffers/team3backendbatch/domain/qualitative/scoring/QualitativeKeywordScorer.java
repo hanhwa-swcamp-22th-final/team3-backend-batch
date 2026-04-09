@@ -11,16 +11,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Scores domain keywords against a comment chunk.
- * Positive domain keywords are loaded from admin-managed metadata,
- * while negative penalty signals remain local until admin metadata supports sign handling.
- */
 @Component
-@RequiredArgsConstructor
 public class QualitativeKeywordScorer {
 
     private static final BigDecimal KEYWORD_SUM_CAP = BigDecimal.valueOf(0.60);
@@ -46,13 +39,15 @@ public class QualitativeKeywordScorer {
         NEGATIVE_KEYWORD_WEIGHTS.put("insufficient", BigDecimal.valueOf(-0.10));
     }
 
-    private final QualitativeKeywordRuleLoader keywordRuleLoader;
-
     public KeywordScoreResult scoreKeywords(String text) {
-        return scoreKeywords(text, List.of());
+        return scoreKeywords(text, List.of(), List.of());
     }
 
     public KeywordScoreResult scoreKeywords(String text, List<String> extractedLemmas) {
+        return scoreKeywords(text, extractedLemmas, List.of());
+    }
+
+    public KeywordScoreResult scoreKeywords(String text, List<String> extractedLemmas, List<QualitativeKeywordRule> keywordRules) {
         String normalizedText = normalize(text);
         List<String> normalizedLemmas = extractedLemmas == null
             ? List.of()
@@ -61,7 +56,7 @@ public class QualitativeKeywordScorer {
         BigDecimal total = BigDecimal.ZERO;
         Set<String> matchedKeywords = new LinkedHashSet<>();
 
-        for (QualitativeKeywordRule rule : resolvePositiveRules()) {
+        for (QualitativeKeywordRule rule : resolvePositiveRules(keywordRules)) {
             String keyword = normalize(rule.getKeyword());
             if (matchesKeyword(normalizedText, normalizedLemmas, keyword)) {
                 total = total.add(rule.getScoreWeight());
@@ -95,12 +90,11 @@ public class QualitativeKeywordScorer {
         return CONTEXT_BASE;
     }
 
-    private List<QualitativeKeywordRule> resolvePositiveRules() {
-        List<QualitativeKeywordRule> rules = keywordRuleLoader.loadActiveKeywordRules();
-        if (rules == null || rules.isEmpty()) {
+    private List<QualitativeKeywordRule> resolvePositiveRules(List<QualitativeKeywordRule> keywordRules) {
+        if (keywordRules == null || keywordRules.isEmpty()) {
             return DEFAULT_POSITIVE_RULES;
         }
-        return rules;
+        return keywordRules;
     }
 
     private BigDecimal clampKeywordWeightSum(BigDecimal total) {

@@ -5,6 +5,7 @@ import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.Qu
 import com.ohgiraffers.team3backendbatch.domain.qualitative.model.Chunk;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.model.ChunkContribution;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.model.KeywordScoreResult;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.QualitativeKeywordRule;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeChunkSplitter;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeKeywordScorer;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeScoreCalculator;
@@ -18,9 +19,6 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Analyzes comment text only and returns the raw NLP-based qualitative score.
- */
 @Component
 @RequiredArgsConstructor
 public class QualitativeCommentAnalyzer {
@@ -30,7 +28,7 @@ public class QualitativeCommentAnalyzer {
     private final QualitativeKeywordScorer qualitativeKeywordScorer;
     private final QualitativeScoreCalculator qualitativeScoreCalculator;
 
-    public QualitativeCommentAnalysis analyze(String commentText) {
+    public QualitativeCommentAnalysis analyze(String commentText, List<QualitativeKeywordRule> keywordRules) {
         List<Chunk> chunks = qualitativeChunkSplitter.splitIntoChunks(commentText);
         List<ChunkContribution> contributions = new ArrayList<>();
         List<NlpAnalysisResponse> responses = new ArrayList<>();
@@ -42,7 +40,8 @@ public class QualitativeCommentAnalyzer {
             NlpAnalysisResponse response = nlpAnalysisGateway.annotateText(chunk.getText());
             KeywordScoreResult keywordScore = qualitativeKeywordScorer.scoreKeywords(
                 chunk.getText(),
-                response.getKeywordLemmas()
+                response.getKeywordLemmas(),
+                keywordRules
             );
             BigDecimal chunkScore = qualitativeScoreCalculator.calculateChunkScore(
                 response.getSentimentScore(),
@@ -62,7 +61,7 @@ public class QualitativeCommentAnalyzer {
         );
         BigDecimal commentRawScore = qualitativeScoreCalculator.calculateWeightedAverage(contributions);
         BigDecimal officialRawScore = qualitativeScoreCalculator.applyContextWeight(commentRawScore, contextWeight);
-        BigDecimal commentSQual = qualitativeScoreCalculator.normalizeToSQual(officialRawScore);
+        BigDecimal commentSQual = qualitativeScoreCalculator.scaleInternalRawToDisplayScore(officialRawScore);
 
         List<QualitativeSentenceAnalysis> sentenceAnalyses = new ArrayList<>();
         for (int i = 0; i < chunks.size(); i++) {

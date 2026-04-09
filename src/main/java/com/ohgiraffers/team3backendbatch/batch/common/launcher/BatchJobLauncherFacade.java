@@ -83,6 +83,9 @@ public class BatchJobLauncherFacade {
         if (request.getQualitativeEvaluationId() != null) {
             parameters.put("qualitativeEvaluationId", new JobParameter<>(request.getQualitativeEvaluationId(), Long.class));
         }
+        if (request.getQualitativeEventPayload() != null) {
+            parameters.put("qualitativeEventPayload", new JobParameter<>(request.getQualitativeEventPayload(), String.class));
+        }
         if (request.getForce() != null) {
             parameters.put("force", new JobParameter<>(request.getForce().toString(), String.class));
         }

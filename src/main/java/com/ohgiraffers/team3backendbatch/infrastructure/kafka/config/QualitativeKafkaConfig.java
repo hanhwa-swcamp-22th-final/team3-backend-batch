@@ -1,6 +1,7 @@
 package com.ohgiraffers.team3backendbatch.infrastructure.kafka.config;
 
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationAnalyzedEvent;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationNormalizedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationSubmittedEvent;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,6 +45,21 @@ public class QualitativeKafkaConfig {
     @Bean
     public KafkaTemplate<String, QualitativeEvaluationAnalyzedEvent> qualitativeAnalyzedKafkaTemplate() {
         return new KafkaTemplate<>(qualitativeAnalyzedProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, QualitativeEvaluationNormalizedEvent> qualitativeNormalizedProducerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        config.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+        return new DefaultKafkaProducerFactory<>(config);
+    }
+
+    @Bean
+    public KafkaTemplate<String, QualitativeEvaluationNormalizedEvent> qualitativeNormalizedKafkaTemplate() {
+        return new KafkaTemplate<>(qualitativeNormalizedProducerFactory());
     }
 
     @Bean
