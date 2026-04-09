@@ -55,3 +55,10 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+tasks.register('runMesCsvPublisher', JavaExec) {
+    group = 'application'
+    description = 'Publish MES sample CSV rows to Kafka topics for batch projection seeding.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.ohgiraffers.team3backendbatch.tool.mes.MesCsvKafkaPublisherMain'
+}

@@ -37,27 +37,40 @@
                 mpr.equipment_id AS equipmentId,
                 SUM(COALESCE(mpr.input_qty, 0)) AS totalInputQty,
                 SUM(COALESCE(mpr.good_qty, 0)) AS totalGoodQty,
+                SUM(COALESCE(mpr.defect_qty, 0)) AS totalDefectQty,
                 AVG(NULLIF(mpr.lead_time_sec, 0)) AS averageLeadTimeSec
             FROM batch_projection.mes_production_result_projection mpr
             JOIN target_period tp
-              ON mpr.work_date BETWEEN tp.startDate AND tp.endDate
+              ON DATE(mpr.start_time) BETWEEN tp.startDate AND tp.endDate
             GROUP BY mpr.equipment_id
         ),
         quality_agg AS (
             SELECT
                 mqr.equipment_id AS equipmentId,
-                SUM(COALESCE(mqr.defect_qty, 0)) AS totalDefectQty,
-                AVG(mqr.actual_error) AS actualError
+                COUNT(*) AS totalQualityResultCount,
+                SUM(CASE WHEN LOWER(COALESCE(mqr.overall_result, '')) = 'fail' THEN 1 ELSE 0 END) AS failedQualityResultCount
             FROM batch_projection.mes_quality_result_projection mqr
             JOIN target_period tp
-              ON mqr.work_date BETWEEN tp.startDate AND tp.endDate
+              ON DATE(mqr.event_time_stamp) BETWEEN tp.startDate AND tp.endDate
             GROUP BY mqr.equipment_id
         ),
         status_agg AS (
             SELECT
                 mes.equipment_id AS equipmentId,
-                SUM(COALESCE(mes.downtime_minutes, 0)) AS downtimeMinutes,
-                SUM(COALESCE(mes.maintenance_minutes, 0)) AS maintenanceMinutes
+                SUM(
+                    CASE
+                        WHEN mes.status_type IN ('정지', '에러')
+                            THEN GREATEST(TIMESTAMPDIFF(MINUTE, mes.start_time_stamp, mes.end_time_stamp), 0)
+                        ELSE 0
+                    END
+                ) AS downtimeMinutes,
+                SUM(
+                    CASE
+                        WHEN mes.status_type = '점검'
+                            THEN GREATEST(TIMESTAMPDIFF(MINUTE, mes.start_time_stamp, mes.end_time_stamp), 0)
+                        ELSE 0
+                    END
+                ) AS maintenanceMinutes
             FROM batch_projection.mes_equipment_status_projection mes
             JOIN target_period tp
               ON DATE(mes.start_time_stamp) BETWEEN tp.startDate AND tp.endDate
@@ -86,7 +99,7 @@
                 AVG(ee.env_temperature) AS environmentTemperature,
                 AVG(ee.env_humidity) AS environmentHumidity,
                 AVG(ee.env_particle_cnt) AS environmentParticleCount
-            FROM environment_event ee
+            FROM batch_projection.environment_event_projection ee
             JOIN target_period tp
               ON DATE(ee.env_detected_at) BETWEEN tp.startDate AND tp.endDate
             GROUP BY ee.equipment_id
@@ -123,7 +136,7 @@
             tp.endDate AS evaluationPeriodEndDate,
             pa.totalInputQty AS totalInputQty,
             pa.totalGoodQty AS totalGoodQty,
-            COALESCE(qa.totalDefectQty, pa.totalInputQty - pa.totalGoodQty) AS totalDefectQty,
+            COALESCE(pa.totalDefectQty, pa.totalInputQty - pa.totalGoodQty) AS totalDefectQty,
             pa.averageLeadTimeSec AS averageLeadTimeSec,
             sa.downtimeMinutes AS downtimeMinutes,
             sa.maintenanceMinutes AS maintenanceMinutes,
@@ -164,7 +177,7 @@
             ag.antiGamingPenalty AS antiGamingPenalty,
             NULL AS groupMean,
             NULL AS groupStdDev,
-            qa.actualError AS actualError
+            NULL AS actualError
         FROM deployment_scope ds
         JOIN target_period tp
           ON 1 = 1

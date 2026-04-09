@@ -1,0 +1,9 @@
+package com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository;
+
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.MesQualityMeasurementProjectionEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.MesQualityMeasurementProjectionId;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface MesQualityMeasurementProjectionRepository
+    extends JpaRepository<MesQualityMeasurementProjectionEntity, MesQualityMeasurementProjectionId> {
+}

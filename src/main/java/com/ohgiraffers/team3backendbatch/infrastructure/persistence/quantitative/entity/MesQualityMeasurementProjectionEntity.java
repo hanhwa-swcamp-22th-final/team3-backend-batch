@@ -1,43 +1,46 @@
 package com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(catalog = "batch_projection", name = "mes_quality_result_projection")
+@Table(catalog = "batch_projection", name = "mes_quality_measurement_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MesQualityResultProjectionEntity {
+public class MesQualityMeasurementProjectionEntity {
 
     private static final long SYSTEM_ACTOR_ID = 0L;
 
-    @Id
-    @Column(name = "quality_result_id")
-    private Long qualityResultId;
+    @EmbeddedId
+    private MesQualityMeasurementProjectionId id;
 
     @Column(name = "prod_lot_no")
     private String prodLotNo;
 
-    @Column(name = "equipment_id", nullable = false)
-    private Long equipmentId;
-
-    @Column(name = "source_equipment_code")
-    private String sourceEquipmentCode;
-
     @Column(name = "input_lot_no")
     private String inputLotNo;
 
-    @Column(name = "event_time_stamp")
-    private LocalDateTime eventTimeStamp;
+    @Column(name = "ucl")
+    private BigDecimal ucl;
 
-    @Column(name = "overall_result")
-    private String overallResult;
+    @Column(name = "target_value")
+    private BigDecimal targetValue;
+
+    @Column(name = "lcl")
+    private BigDecimal lcl;
+
+    @Column(name = "measured_value")
+    private BigDecimal measuredValue;
+
+    @Column(name = "judge_result")
+    private String judgeResult;
 
     @Column(name = "occurred_at")
     private LocalDateTime occurredAt;
@@ -54,29 +57,23 @@ public class MesQualityResultProjectionEntity {
     @Column(name = "updated_by")
     private Long updatedBy;
 
-    public static MesQualityResultProjectionEntity create(
+    public static MesQualityMeasurementProjectionEntity create(
         Long qualityResultId,
+        String processCode,
+        String measureItem,
         String prodLotNo,
-        Long equipmentId,
-        String sourceEquipmentCode,
         String inputLotNo,
-        LocalDateTime eventTimeStamp,
-        String overallResult,
+        BigDecimal ucl,
+        BigDecimal targetValue,
+        BigDecimal lcl,
+        BigDecimal measuredValue,
+        String judgeResult,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
-        MesQualityResultProjectionEntity entity = new MesQualityResultProjectionEntity();
-        entity.qualityResultId = qualityResultId;
-        entity.refreshSnapshot(
-            prodLotNo,
-            equipmentId,
-            sourceEquipmentCode,
-            inputLotNo,
-            eventTimeStamp,
-            overallResult,
-            occurredAt,
-            now
-        );
+        MesQualityMeasurementProjectionEntity entity = new MesQualityMeasurementProjectionEntity();
+        entity.id = new MesQualityMeasurementProjectionId(qualityResultId, processCode, measureItem);
+        entity.refreshSnapshot(prodLotNo, inputLotNo, ucl, targetValue, lcl, measuredValue, judgeResult, occurredAt, now);
         entity.createdAt = now;
         entity.createdBy = SYSTEM_ACTOR_ID;
         return entity;
@@ -84,20 +81,22 @@ public class MesQualityResultProjectionEntity {
 
     public void refreshSnapshot(
         String prodLotNo,
-        Long equipmentId,
-        String sourceEquipmentCode,
         String inputLotNo,
-        LocalDateTime eventTimeStamp,
-        String overallResult,
+        BigDecimal ucl,
+        BigDecimal targetValue,
+        BigDecimal lcl,
+        BigDecimal measuredValue,
+        String judgeResult,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
         this.prodLotNo = prodLotNo;
-        this.equipmentId = equipmentId;
-        this.sourceEquipmentCode = sourceEquipmentCode;
         this.inputLotNo = inputLotNo;
-        this.eventTimeStamp = eventTimeStamp;
-        this.overallResult = overallResult;
+        this.ucl = ucl;
+        this.targetValue = targetValue;
+        this.lcl = lcl;
+        this.measuredValue = measuredValue;
+        this.judgeResult = judgeResult;
         this.occurredAt = occurredAt;
         this.updatedAt = now;
         this.updatedBy = SYSTEM_ACTOR_ID;

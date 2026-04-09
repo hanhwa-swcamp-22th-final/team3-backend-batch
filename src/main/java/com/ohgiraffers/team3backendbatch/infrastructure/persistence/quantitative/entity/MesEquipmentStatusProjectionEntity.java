@@ -1,10 +1,9 @@
 package com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -18,21 +17,20 @@ public class MesEquipmentStatusProjectionEntity {
 
     private static final long SYSTEM_ACTOR_ID = 0L;
 
-    @Id
-    @Column(name = "mes_equipment_status_projection_id")
-    private Long mesEquipmentStatusProjectionId;
+    @EmbeddedId
+    private MesEquipmentStatusProjectionId id;
 
-    @Column(name = "equipment_id", nullable = false)
-    private Long equipmentId;
+    @Column(name = "source_equipment_code")
+    private String sourceEquipmentCode;
 
-    @Column(name = "start_time_stamp")
-    private LocalDateTime startTimeStamp;
+    @Column(name = "end_time_stamp")
+    private LocalDateTime endTimeStamp;
 
-    @Column(name = "downtime_minutes")
-    private BigDecimal downtimeMinutes;
+    @Column(name = "alarm_code")
+    private String alarmCode;
 
-    @Column(name = "maintenance_minutes")
-    private BigDecimal maintenanceMinutes;
+    @Column(name = "alarm_desc")
+    private String alarmDesc;
 
     @Column(name = "occurred_at")
     private LocalDateTime occurredAt;
@@ -50,34 +48,36 @@ public class MesEquipmentStatusProjectionEntity {
     private Long updatedBy;
 
     public static MesEquipmentStatusProjectionEntity create(
-        Long mesEquipmentStatusProjectionId,
         Long equipmentId,
+        String statusType,
         LocalDateTime startTimeStamp,
-        BigDecimal downtimeMinutes,
-        BigDecimal maintenanceMinutes,
+        String sourceEquipmentCode,
+        LocalDateTime endTimeStamp,
+        String alarmCode,
+        String alarmDesc,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
         MesEquipmentStatusProjectionEntity entity = new MesEquipmentStatusProjectionEntity();
-        entity.mesEquipmentStatusProjectionId = mesEquipmentStatusProjectionId;
-        entity.refreshSnapshot(equipmentId, startTimeStamp, downtimeMinutes, maintenanceMinutes, occurredAt, now);
+        entity.id = new MesEquipmentStatusProjectionId(equipmentId, statusType, startTimeStamp);
+        entity.refreshSnapshot(sourceEquipmentCode, endTimeStamp, alarmCode, alarmDesc, occurredAt, now);
         entity.createdAt = now;
         entity.createdBy = SYSTEM_ACTOR_ID;
         return entity;
     }
 
     public void refreshSnapshot(
-        Long equipmentId,
-        LocalDateTime startTimeStamp,
-        BigDecimal downtimeMinutes,
-        BigDecimal maintenanceMinutes,
+        String sourceEquipmentCode,
+        LocalDateTime endTimeStamp,
+        String alarmCode,
+        String alarmDesc,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
-        this.equipmentId = equipmentId;
-        this.startTimeStamp = startTimeStamp;
-        this.downtimeMinutes = downtimeMinutes;
-        this.maintenanceMinutes = maintenanceMinutes;
+        this.sourceEquipmentCode = sourceEquipmentCode;
+        this.endTimeStamp = endTimeStamp;
+        this.alarmCode = alarmCode;
+        this.alarmDesc = alarmDesc;
         this.occurredAt = occurredAt;
         this.updatedAt = now;
         this.updatedBy = SYSTEM_ACTOR_ID;

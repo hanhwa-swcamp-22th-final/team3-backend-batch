@@ -3,10 +3,16 @@ package com.ohgiraffers.team3backendbatch.batch.job.quantitative.reader;
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationSourceRow;
+import com.ohgiraffers.team3backendbatch.batch.job.quantitative.processor.QuantitativeEvaluationProcessor;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.QuantitativeEvaluationQueryMapper;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -19,8 +25,10 @@ import org.springframework.stereotype.Component;
 public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluationAggregate> {
 
     private static final Logger log = LoggerFactory.getLogger(QuantitativeSourceReader.class);
+    private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
     private final QuantitativeEvaluationQueryMapper quantitativeEvaluationQueryMapper;
+    private final QuantitativeEvaluationProcessor quantitativeEvaluationProcessor;
     private final Long evaluationPeriodId;
     private final Long employeeId;
     private final boolean force;
@@ -30,12 +38,14 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
 
     public QuantitativeSourceReader(
         QuantitativeEvaluationQueryMapper quantitativeEvaluationQueryMapper,
+        QuantitativeEvaluationProcessor quantitativeEvaluationProcessor,
         @Value("#{jobParameters['evaluationPeriodId']}") Long evaluationPeriodId,
         @Value("#{jobParameters['employeeId']}") Long employeeId,
         @Value("#{jobParameters['force']}") String force,
         @Value("#{jobParameters['periodType']}") String periodType
     ) {
         this.quantitativeEvaluationQueryMapper = quantitativeEvaluationQueryMapper;
+        this.quantitativeEvaluationProcessor = quantitativeEvaluationProcessor;
         this.evaluationPeriodId = evaluationPeriodId;
         this.employeeId = employeeId;
         this.force = Boolean.parseBoolean(force);
@@ -50,11 +60,11 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
                 return null;
             }
 
-            List<QuantitativeEvaluationAggregate> items = quantitativeEvaluationQueryMapper
+            List<QuantitativeEvaluationAggregate> items = enrichMonthlyGroupStatistics(quantitativeEvaluationQueryMapper
                 .findQuantitativeSourcesForEvaluation(evaluationPeriodId, employeeId, force)
                 .stream()
                 .map(this::toAggregate)
-                .toList();
+                .toList());
 
             iterator = items.iterator();
             log.info(
@@ -71,6 +81,88 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             return null;
         }
         return iterator.next();
+    }
+
+    private List<QuantitativeEvaluationAggregate> enrichMonthlyGroupStatistics(List<QuantitativeEvaluationAggregate> rawItems) {
+        if (periodType != BatchPeriodType.MONTH || rawItems.isEmpty()) {
+            return rawItems;
+        }
+
+        List<QuantitativeEvaluationAggregate> previewItems = new ArrayList<>(rawItems.size());
+        for (QuantitativeEvaluationAggregate item : rawItems) {
+            previewItems.add(previewAggregate(item));
+        }
+
+        Map<String, GroupStats> statsByTier = previewItems.stream()
+            .collect(Collectors.groupingBy(
+                this::resolveGroupKey,
+                Collectors.collectingAndThen(Collectors.toList(), this::calculateGroupStats)
+            ));
+
+        return previewItems.stream()
+            .map(item -> applyGroupStats(item, statsByTier.get(resolveGroupKey(item))))
+            .toList();
+    }
+
+    private QuantitativeEvaluationAggregate previewAggregate(QuantitativeEvaluationAggregate item) {
+        try {
+            return quantitativeEvaluationProcessor.process(item);
+        } catch (Exception exception) {
+            throw new IllegalStateException(
+                "Failed to prepare quantitative group statistics for employeeId=%s, equipmentId=%s"
+                    .formatted(item.getEmployeeId(), item.getEquipmentId()),
+                exception
+            );
+        }
+    }
+
+    private GroupStats calculateGroupStats(List<QuantitativeEvaluationAggregate> items) {
+        List<BigDecimal> scores = items.stream()
+            .map(QuantitativeEvaluationAggregate::getSQuant)
+            .filter(Objects::nonNull)
+            .toList();
+
+        if (scores.isEmpty()) {
+            return new GroupStats(null, null);
+        }
+
+        BigDecimal mean = scale(
+            scores.stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(scores.size()), 4, RoundingMode.HALF_UP)
+        );
+
+        if (scores.size() < 2) {
+            return new GroupStats(mean, ZERO);
+        }
+
+        BigDecimal variance = scores.stream()
+            .map(score -> score.subtract(mean))
+            .map(delta -> delta.multiply(delta))
+            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .divide(BigDecimal.valueOf(scores.size()), 4, RoundingMode.HALF_UP);
+
+        BigDecimal stdDev = scale(BigDecimal.valueOf(Math.sqrt(Math.max(variance.doubleValue(), 0.0d))));
+        return new GroupStats(mean, stdDev);
+    }
+
+    private QuantitativeEvaluationAggregate applyGroupStats(
+        QuantitativeEvaluationAggregate item,
+        GroupStats groupStats
+    ) {
+        if (groupStats == null) {
+            return item;
+        }
+        return item.toBuilder()
+            .groupMean(groupStats.mean())
+            .groupStdDev(groupStats.stdDev())
+            .build();
+    }
+
+    private String resolveGroupKey(QuantitativeEvaluationAggregate item) {
+        return item.getCurrentSkillTier() == null || item.getCurrentSkillTier().isBlank()
+            ? "UNKNOWN"
+            : item.getCurrentSkillTier().trim().toUpperCase();
     }
 
     private QuantitativeEvaluationAggregate toAggregate(QuantitativeEvaluationSourceRow row) {
@@ -131,5 +223,12 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             return BatchPeriodType.MONTH;
         }
         return BatchPeriodType.valueOf(value.trim().toUpperCase());
+    }
+
+    private BigDecimal scale(BigDecimal value) {
+        return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private record GroupStats(BigDecimal mean, BigDecimal stdDev) {
     }
 }

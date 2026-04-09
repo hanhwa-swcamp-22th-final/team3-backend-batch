@@ -5,7 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -20,20 +19,41 @@ public class MesProductionResultProjectionEntity {
     private static final long SYSTEM_ACTOR_ID = 0L;
 
     @Id
-    @Column(name = "mes_production_result_projection_id")
-    private Long mesProductionResultProjectionId;
+    @Column(name = "event_id")
+    private String eventId;
 
     @Column(name = "equipment_id", nullable = false)
     private Long equipmentId;
 
-    @Column(name = "work_date", nullable = false)
-    private LocalDate workDate;
+    @Column(name = "source_equipment_code")
+    private String sourceEquipmentCode;
+
+    @Column(name = "equipment_name_snapshot")
+    private String equipmentNameSnapshot;
+
+    @Column(name = "input_lot_no")
+    private String inputLotNo;
+
+    @Column(name = "start_time")
+    private LocalDateTime startTime;
+
+    @Column(name = "end_time")
+    private LocalDateTime endTime;
+
+    @Column(name = "cycle_time_sec")
+    private BigDecimal cycleTimeSec;
 
     @Column(name = "input_qty")
     private BigDecimal inputQty;
 
+    @Column(name = "output_qty")
+    private BigDecimal outputQty;
+
     @Column(name = "good_qty")
     private BigDecimal goodQty;
+
+    @Column(name = "defect_qty")
+    private BigDecimal defectQty;
 
     @Column(name = "lead_time_sec")
     private BigDecimal leadTimeSec;
@@ -54,18 +74,40 @@ public class MesProductionResultProjectionEntity {
     private Long updatedBy;
 
     public static MesProductionResultProjectionEntity create(
-        Long mesProductionResultProjectionId,
+        String eventId,
         Long equipmentId,
-        LocalDate workDate,
+        String sourceEquipmentCode,
+        String equipmentNameSnapshot,
+        String inputLotNo,
+        LocalDateTime startTime,
+        LocalDateTime endTime,
+        BigDecimal cycleTimeSec,
         BigDecimal inputQty,
+        BigDecimal outputQty,
         BigDecimal goodQty,
+        BigDecimal defectQty,
         BigDecimal leadTimeSec,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
         MesProductionResultProjectionEntity entity = new MesProductionResultProjectionEntity();
-        entity.mesProductionResultProjectionId = mesProductionResultProjectionId;
-        entity.refreshSnapshot(equipmentId, workDate, inputQty, goodQty, leadTimeSec, occurredAt, now);
+        entity.eventId = eventId;
+        entity.refreshSnapshot(
+            equipmentId,
+            sourceEquipmentCode,
+            equipmentNameSnapshot,
+            inputLotNo,
+            startTime,
+            endTime,
+            cycleTimeSec,
+            inputQty,
+            outputQty,
+            goodQty,
+            defectQty,
+            leadTimeSec,
+            occurredAt,
+            now
+        );
         entity.createdAt = now;
         entity.createdBy = SYSTEM_ACTOR_ID;
         return entity;
@@ -73,17 +115,31 @@ public class MesProductionResultProjectionEntity {
 
     public void refreshSnapshot(
         Long equipmentId,
-        LocalDate workDate,
+        String sourceEquipmentCode,
+        String equipmentNameSnapshot,
+        String inputLotNo,
+        LocalDateTime startTime,
+        LocalDateTime endTime,
+        BigDecimal cycleTimeSec,
         BigDecimal inputQty,
+        BigDecimal outputQty,
         BigDecimal goodQty,
+        BigDecimal defectQty,
         BigDecimal leadTimeSec,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
         this.equipmentId = equipmentId;
-        this.workDate = workDate;
+        this.sourceEquipmentCode = sourceEquipmentCode;
+        this.equipmentNameSnapshot = equipmentNameSnapshot;
+        this.inputLotNo = inputLotNo;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.cycleTimeSec = cycleTimeSec;
         this.inputQty = inputQty;
+        this.outputQty = outputQty;
         this.goodQty = goodQty;
+        this.defectQty = defectQty;
         this.leadTimeSec = leadTimeSec;
         this.occurredAt = occurredAt;
         this.updatedAt = now;
