@@ -49,6 +49,7 @@ public class QuantitativeEvaluationSourceRow {
     private BigDecimal lotDefectThreshold;
     private BigDecimal difficultyScore;
     private String difficultyGrade;
+    private String currentSkillTier;
     private BigDecimal errorReferenceRate;
     private BigDecimal baselineError;
     private BigDecimal environmentCorrection;

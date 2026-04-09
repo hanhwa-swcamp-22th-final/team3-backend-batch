@@ -23,6 +23,7 @@ public class QuantitativeCalculationResult {
     private final BigDecimal baselineError;
     private final BigDecimal qBase;
     private final BigDecimal eIdx;
+    private final BigDecimal bonusPoint;
     private final BigDecimal provisionalSQuant;
     private final BigDecimal environmentCorrection;
     private final BigDecimal materialCorrection;

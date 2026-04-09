@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.order.mapper.OrderDifficultyQueryMapper">
+
+    <resultMap id="orderDifficultySourceMap"
+               type="com.ohgiraffers.team3backendbatch.batch.job.order.difficulty.model.OrderDifficultySource">
+        <id property="orderId" column="order_id"/>
+        <result property="productId" column="product_id"/>
+        <result property="configId" column="config_id"/>
+        <result property="orderNumber" column="order_no"/>
+        <result property="orderQuantity" column="order_quantity"/>
+        <result property="dueDate" column="order_deadline"/>
+        <result property="firstOrder" column="is_first_order"/>
+        <result property="industryPreset" column="industry_preset"/>
+        <result property="weightV1" column="weight_v1"/>
+        <result property="weightV2" column="weight_v2"/>
+        <result property="weightV3" column="weight_v3"/>
+        <result property="weightV4" column="weight_v4"/>
+        <result property="alphaWeight" column="alpha_weight"/>
+        <result property="productName" column="product_name"/>
+        <result property="productCode" column="product_code"/>
+    </resultMap>
+
+    <select id="findOrderDifficultySource" resultMap="orderDifficultySourceMap">
+        SELECT
+            o.order_id,
+            o.product_id,
+            o.config_id,
+            o.order_no,
+            o.order_quantity,
+            o.order_deadline,
+            o.is_first_order,
+            COALESCE(active_cfg.industry_preset, order_cfg.industry_preset) AS industry_preset,
+            active_cfg.weight_v1,
+            active_cfg.weight_v2,
+            active_cfg.weight_v3,
+            active_cfg.weight_v4,
+            active_cfg.alpha_weight,
+            p.product_name,
+            p.product_code
+        FROM orders o
+        JOIN product p
+          ON p.product_id = o.product_id
+        LEFT JOIN OCSA_weight_config order_cfg
+          ON order_cfg.config_id = o.config_id
+        LEFT JOIN OCSA_weight_config active_cfg
+          ON active_cfg.config_id = (
+              SELECT cfg.config_id
+              FROM OCSA_weight_config cfg
+              WHERE cfg.industry_preset = order_cfg.industry_preset
+              ORDER BY
+                  CASE WHEN cfg.effective_date IS NULL THEN 1 ELSE 0 END,
+                  cfg.effective_date DESC,
+                  cfg.config_id DESC
+              LIMIT 1
+          )
+        WHERE o.order_id = #{orderId}
+    </select>
+</mapper>

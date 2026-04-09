@@ -28,6 +28,8 @@ class QuantitativeEvaluationProcessorTest {
             .targetUph(BigDecimal.valueOf(50))
             .targetYieldRate(BigDecimal.valueOf(95))
             .targetLeadTimeSec(BigDecimal.valueOf(75))
+            .difficultyGrade("D4")
+            .currentSkillTier("B")
             .baselineError(BigDecimal.valueOf(5))
             .environmentCorrection(BigDecimal.valueOf(3))
             .materialCorrection(BigDecimal.valueOf(2))
@@ -45,12 +47,13 @@ class QuantitativeEvaluationProcessorTest {
         assertThat(result.getUphScore()).isEqualByComparingTo("100.00");
         assertThat(result.getYieldScore()).isEqualByComparingTo("100.00");
         assertThat(result.getLeadTimeScore()).isEqualByComparingTo("100.00");
-        assertThat(result.getDifficultyAdjustment()).isEqualByComparingTo("1.00");
+        assertThat(result.getDifficultyAdjustment()).isEqualByComparingTo("1.10");
         assertThat(result.getQBase()).isEqualByComparingTo("100.00");
         assertThat(result.getEIdx()).isEqualByComparingTo("1.00");
-        assertThat(result.getProvisionalSQuant()).isEqualByComparingTo("100.00");
-        assertThat(result.getSQuant()).isEqualByComparingTo("100.00");
-        assertThat(result.getTScore()).isEqualByComparingTo("100.00");
+        assertThat(result.getBonusPoint()).isEqualByComparingTo("5.00");
+        assertThat(result.getProvisionalSQuant()).isEqualByComparingTo("27.00");
+        assertThat(result.getSQuant()).isEqualByComparingTo("31.00");
+        assertThat(result.getTScore()).isEqualByComparingTo("31.00");
         assertThat(result.getStatus()).isEqualTo("SETTLED");
     }
 }

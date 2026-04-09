@@ -47,12 +47,18 @@ class QuantitativeScoreCalculatorTest {
             null
         );
         BigDecimal materialShielding = calculator.calculateMaterialShielding(4, 5, null);
-        BigDecimal difficultyAdjustment = calculator.calculateDifficultyAdjustment(BigDecimal.valueOf(2));
+        BigDecimal difficultyAdjustment = calculator.calculateDifficultyAdjustment(null, "D3");
         BigDecimal baselineError = calculator.calculateBaselineError(null, BigDecimal.valueOf(5), nAge);
         BigDecimal qBase = calculator.calculateQBase(uphScore, yieldScore, leadTimeScore);
         BigDecimal eIdx = calculator.calculateEIdx("B", nAge, etaAge, nMaint, nEnv, materialShielding);
-        BigDecimal pError = calculator.calculatePError(actualError, baselineError, materialShielding);
-        BigDecimal provisionalSQuant = calculator.calculateProvisionalSQuant(qBase, difficultyAdjustment, eIdx, pError);
+        BigDecimal bonusPoint = calculator.calculateBonusPoint(null, "D4", "B");
+        BigDecimal provisionalSQuant = calculator.calculateProvisionalSQuantFromErrorRate(
+            actualError,
+            baselineError,
+            difficultyAdjustment,
+            bonusPoint,
+            qBase
+        );
         BigDecimal finalSQuant = calculator.calculateFinalSQuant(
             provisionalSQuant,
             BigDecimal.valueOf(3),
@@ -67,15 +73,15 @@ class QuantitativeScoreCalculatorTest {
         assertThat(nMaint).isEqualByComparingTo("0.85");
         assertThat(nEnv).isEqualByComparingTo("0.13");
         assertThat(materialShielding).isEqualByComparingTo("1.00");
-        assertThat(difficultyAdjustment).isEqualByComparingTo("1.00");
+        assertThat(difficultyAdjustment).isEqualByComparingTo("1.05");
         assertThat(baselineError).isEqualByComparingTo("5.00");
         assertThat(qBase).isEqualByComparingTo("100.00");
         assertThat(eIdx).isEqualByComparingTo("1.00");
-        assertThat(pError).isEqualByComparingTo("0.00");
-        assertThat(provisionalSQuant).isEqualByComparingTo("100.00");
-        assertThat(finalSQuant).isEqualByComparingTo("100.00");
+        assertThat(bonusPoint).isEqualByComparingTo("5.00");
+        assertThat(provisionalSQuant).isEqualByComparingTo("26.00");
+        assertThat(finalSQuant).isEqualByComparingTo("30.00");
         assertThat(calculator.calculateTScore(finalSQuant, BigDecimal.valueOf(80), BigDecimal.valueOf(10), BatchPeriodType.MONTH))
-            .isEqualByComparingTo("70.00");
+            .isEqualByComparingTo("0.00");
         assertThat(calculator.resolveStatus(BatchPeriodType.MONTH)).isEqualTo("SETTLED");
     }
 

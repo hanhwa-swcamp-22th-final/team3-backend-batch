@@ -10,5 +10,6 @@ package com.ohgiraffers.team3backendbatch.api.command.dto;
 public enum ManualJobLaunchMode {
     FULL,
     PERIOD,
-    EMPLOYEE
+    EMPLOYEE,
+    ORDER
 }

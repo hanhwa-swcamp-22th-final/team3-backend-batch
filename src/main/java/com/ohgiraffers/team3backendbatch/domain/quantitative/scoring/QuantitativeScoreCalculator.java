@@ -35,6 +35,8 @@ public class QuantitativeScoreCalculator {
     private static final BigDecimal MIN_ETA_AGE = BigDecimal.valueOf(0.60);
     private static final BigDecimal BASELINE_AGE_FACTOR = BigDecimal.valueOf(0.50);
     private static final BigDecimal PENALTY_SCALE = BigDecimal.TEN;
+    private static final BigDecimal CHALLENGE_RATIO_MAX = BigDecimal.valueOf(1.50);
+    private static final BigDecimal CHALLENGE_BONUS_SCALE = BigDecimal.valueOf(40);
 
     public BigDecimal resolveActualError(BigDecimal actualError, BigDecimal totalDefectQty, BigDecimal totalInputQty) {
         if (isPositive(actualError)) {
@@ -93,10 +95,11 @@ public class QuantitativeScoreCalculator {
     }
 
     public BigDecimal calculateEtaAge(BigDecimal equipmentWearCoefficient, BigDecimal nAge) {
-        if (equipmentWearCoefficient == null) {
+        if (equipmentWearCoefficient == null || nAge == null) {
             return scale(ONE);
         }
-        BigDecimal etaAge = ONE.subtract(equipmentWearCoefficient.multiply(safeRatio(nAge)));
+        double exponent = -safeRatio(equipmentWearCoefficient).doubleValue() * safeRatio(nAge).doubleValue();
+        BigDecimal etaAge = BigDecimal.valueOf(Math.exp(exponent));
         return scale(etaAge.max(MIN_ETA_AGE).min(ONE));
     }
 
@@ -180,10 +183,15 @@ public class QuantitativeScoreCalculator {
     }
 
     public BigDecimal calculateDifficultyAdjustment(BigDecimal difficultyScore) {
-        if (difficultyScore == null) {
+        return calculateDifficultyAdjustment(difficultyScore, null);
+    }
+
+    public BigDecimal calculateDifficultyAdjustment(BigDecimal difficultyScore, String difficultyGrade) {
+        BigDecimal difficultyLevel = resolveDifficultyLevel(difficultyScore, difficultyGrade);
+        if (difficultyLevel == null) {
             return scale(ONE);
         }
-        return scale(BigDecimal.valueOf(0.90).add(difficultyScore.multiply(BigDecimal.valueOf(0.05))));
+        return scale(BigDecimal.valueOf(0.90).add(difficultyLevel.multiply(BigDecimal.valueOf(0.05))));
     }
 
     public BigDecimal calculateBaselineError(BigDecimal baselineError, BigDecimal errorReferenceRate, BigDecimal nAge) {
@@ -229,6 +237,51 @@ public class QuantitativeScoreCalculator {
             .multiply(positiveOrDefault(difficultyAdjustment, ONE))
             .multiply(positiveOrDefault(eIdx, ONE))
             .subtract(safe(pError));
+        return clampPercentage(raw);
+    }
+
+    public BigDecimal calculateBonusPoint(BigDecimal difficultyScore, String difficultyGrade, String currentSkillTier) {
+        BigDecimal difficultyCapability = resolveDifficultyCapability(difficultyScore, difficultyGrade);
+        BigDecimal workerCapability = resolveWorkerCapability(currentSkillTier);
+
+        if (!isPositive(difficultyCapability) || !isPositive(workerCapability)) {
+            return ZERO;
+        }
+
+        BigDecimal challengeRatio = difficultyCapability
+            .divide(workerCapability.max(EPSILON), 4, RoundingMode.HALF_UP)
+            .max(ONE)
+            .min(CHALLENGE_RATIO_MAX);
+
+        if (challengeRatio.compareTo(ONE) <= 0) {
+            return ZERO;
+        }
+
+        return scale(challengeRatio.subtract(ONE).multiply(CHALLENGE_BONUS_SCALE));
+    }
+
+    public BigDecimal calculateProvisionalSQuantFromErrorRate(
+        BigDecimal actualError,
+        BigDecimal baselineError,
+        BigDecimal difficultyAdjustment,
+        BigDecimal bonusPoint,
+        BigDecimal fallbackBaseScore
+    ) {
+        BigDecimal normalizedDifficulty = positiveOrDefault(difficultyAdjustment, ONE);
+
+        if (!isPositive(baselineError)) {
+            BigDecimal fallback = safe(fallbackBaseScore).multiply(normalizedDifficulty).add(safe(bonusPoint));
+            return clampPercentage(fallback);
+        }
+
+        BigDecimal errorImprovementScore = baselineError.subtract(safe(actualError))
+            .divide(baselineError.max(EPSILON), 4, RoundingMode.HALF_UP)
+            .multiply(HUNDRED);
+
+        BigDecimal raw = errorImprovementScore
+            .multiply(normalizedDifficulty)
+            .add(safe(bonusPoint));
+
         return clampPercentage(raw);
     }
 
@@ -338,6 +391,69 @@ public class QuantitativeScoreCalculator {
             return false;
         }
         return "S".equalsIgnoreCase(equipmentGrade) || "A".equalsIgnoreCase(equipmentGrade);
+    }
+
+    private BigDecimal resolveDifficultyLevel(BigDecimal difficultyScore, String difficultyGrade) {
+        if (difficultyGrade != null && !difficultyGrade.isBlank()) {
+            return switch (difficultyGrade.trim().toUpperCase()) {
+                case "D5" -> BigDecimal.valueOf(5);
+                case "D4" -> BigDecimal.valueOf(4);
+                case "D3" -> BigDecimal.valueOf(3);
+                case "D2" -> BigDecimal.valueOf(2);
+                case "D1" -> BigDecimal.ONE;
+                default -> null;
+            };
+        }
+
+        if (difficultyScore == null) {
+            return null;
+        }
+
+        if (difficultyScore.compareTo(BigDecimal.valueOf(5)) <= 0) {
+            return difficultyScore;
+        }
+        if (difficultyScore.compareTo(BigDecimal.valueOf(90)) >= 0) {
+            return BigDecimal.valueOf(5);
+        }
+        if (difficultyScore.compareTo(BigDecimal.valueOf(70)) >= 0) {
+            return BigDecimal.valueOf(4);
+        }
+        if (difficultyScore.compareTo(BigDecimal.valueOf(50)) >= 0) {
+            return BigDecimal.valueOf(3);
+        }
+        if (difficultyScore.compareTo(BigDecimal.valueOf(30)) >= 0) {
+            return BigDecimal.valueOf(2);
+        }
+        return BigDecimal.ONE;
+    }
+
+    private BigDecimal resolveDifficultyCapability(BigDecimal difficultyScore, String difficultyGrade) {
+        BigDecimal difficultyLevel = resolveDifficultyLevel(difficultyScore, difficultyGrade);
+        if (difficultyLevel == null) {
+            return null;
+        }
+
+        return switch (difficultyLevel.intValue()) {
+            case 5 -> scale(ONE);
+            case 4 -> scale(BigDecimal.valueOf(0.90));
+            case 3 -> scale(BigDecimal.valueOf(0.80));
+            case 2 -> scale(BigDecimal.valueOf(0.70));
+            default -> scale(BigDecimal.valueOf(0.60));
+        };
+    }
+
+    private BigDecimal resolveWorkerCapability(String currentSkillTier) {
+        if (currentSkillTier == null || currentSkillTier.isBlank()) {
+            return null;
+        }
+
+        return switch (currentSkillTier.trim().toUpperCase()) {
+            case "S" -> scale(ONE);
+            case "A" -> scale(BigDecimal.valueOf(0.90));
+            case "B" -> scale(BigDecimal.valueOf(0.80));
+            case "C" -> scale(BigDecimal.valueOf(0.70));
+            default -> null;
+        };
     }
 
     private BigDecimal clampPercentage(BigDecimal value) {

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeAnalysisResult;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.SecondEvaluationMode;
-import com.ohgiraffers.team3backendbatch.domain.qualitative.model.QualitativeKeywordRule;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeChunkSplitter;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeKeywordScorer;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.scoring.QualitativeScoreCalculator;
@@ -44,13 +43,15 @@ class QualitativeEvaluationProcessorTest {
             202604L,
             1001L,
             9001L,
+            9101L,
             1L,
             null,
             null,
             COMMENT,
             "TEXT",
             "v1",
-            LocalDateTime.of(2026, 4, 6, 9, 0)
+            LocalDateTime.of(2026, 4, 6, 9, 0),
+            List.of()
         );
 
         QualitativeAnalysisResult result = processor.process(aggregate);
@@ -65,13 +66,13 @@ class QualitativeEvaluationProcessorTest {
         assertThat(result.getMatchedKeywordCount()).isGreaterThanOrEqualTo(1);
         assertThat(result.getMatchedKeywords()).isNotEmpty();
         assertThat(result.getCommentRawScore()).isEqualByComparingTo("1.2000");
-        assertThat(result.getSqualRaw()).isEqualByComparingTo("1.3200");
-        assertThat(result.getCommentSQual()).isEqualByComparingTo("76.40");
+        assertThat(result.getSqualRaw()).isEqualByComparingTo("87.50");
+        assertThat(result.getCommentSQual()).isEqualByComparingTo("87.50");
         assertThat(result.getAdjustmentScore()).isEqualByComparingTo("0.0000");
-        assertThat(result.getOriginalSQual()).isNull();
+        assertThat(result.getOriginalSQual()).isEqualByComparingTo("87.50");
         assertThat(result.isBiasCorrected()).isFalse();
-        assertThat(result.getSQual()).isNull();
-        assertThat(result.getNormalizedTier()).isNull();
+        assertThat(result.getSQual()).isEqualByComparingTo("87.50");
+        assertThat(result.getNormalizedTier()).isEqualTo("S");
     }
 
     @Test
@@ -86,13 +87,15 @@ class QualitativeEvaluationProcessorTest {
             202604L,
             1001L,
             9002L,
+            9102L,
             2L,
             SecondEvaluationMode.ANALYZE_COMMENT,
-            BigDecimal.valueOf(1.3200),
+            BigDecimal.valueOf(87.50),
             COMMENT,
             "TEXT",
             "v1",
-            LocalDateTime.of(2026, 4, 6, 10, 0)
+            LocalDateTime.of(2026, 4, 6, 10, 0),
+            List.of()
         );
 
         QualitativeAnalysisResult result = processor.process(aggregate);
@@ -100,14 +103,14 @@ class QualitativeEvaluationProcessorTest {
         assertThat(result.getEvaluationLevel()).isEqualTo(2L);
         assertThat(result.getSecondEvaluationMode()).isEqualTo(SecondEvaluationMode.ANALYZE_COMMENT);
         assertThat(result.isReusedPreviousScore()).isFalse();
-        assertThat(result.getBaseRawScore()).isEqualByComparingTo("1.3200");
+        assertThat(result.getBaseRawScore()).isEqualByComparingTo("87.50");
         assertThat(result.getCommentRawScore()).isEqualByComparingTo("1.2000");
-        assertThat(result.getCommentSQual()).isEqualByComparingTo("76.40");
-        assertThat(result.getAdjustmentScore()).isEqualByComparingTo("0.5000");
-        assertThat(result.getSqualRaw()).isEqualByComparingTo("1.8200");
-        assertThat(result.getOriginalSQual()).isNull();
-        assertThat(result.getSQual()).isNull();
-        assertThat(result.getNormalizedTier()).isNull();
+        assertThat(result.getCommentSQual()).isEqualByComparingTo("87.50");
+        assertThat(result.getAdjustmentScore()).isEqualByComparingTo("14.20");
+        assertThat(result.getSqualRaw()).isEqualByComparingTo("100.00");
+        assertThat(result.getOriginalSQual()).isEqualByComparingTo("100.00");
+        assertThat(result.getSQual()).isEqualByComparingTo("100.00");
+        assertThat(result.getNormalizedTier()).isEqualTo("S");
     }
 
     @Test
@@ -119,13 +122,15 @@ class QualitativeEvaluationProcessorTest {
             202604L,
             1001L,
             9004L,
+            9104L,
             2L,
             SecondEvaluationMode.KEEP_FIRST_SCORE,
-            BigDecimal.valueOf(1.3200),
+            BigDecimal.valueOf(87.50),
             null,
             "TEXT",
             "v1",
-            LocalDateTime.of(2026, 4, 6, 10, 30)
+            LocalDateTime.of(2026, 4, 6, 10, 30),
+            List.of()
         );
 
         QualitativeAnalysisResult result = processor.process(aggregate);
@@ -137,10 +142,10 @@ class QualitativeEvaluationProcessorTest {
         assertThat(result.getMatchedKeywordCount()).isZero();
         assertThat(result.getMatchedKeywords()).isEmpty();
         assertThat(result.getAdjustmentScore()).isEqualByComparingTo("0.0000");
-        assertThat(result.getSqualRaw()).isEqualByComparingTo("1.3200");
-        assertThat(result.getOriginalSQual()).isNull();
-        assertThat(result.getSQual()).isNull();
-        assertThat(result.getNormalizedTier()).isNull();
+        assertThat(result.getSqualRaw()).isEqualByComparingTo("87.50");
+        assertThat(result.getOriginalSQual()).isEqualByComparingTo("87.50");
+        assertThat(result.getSQual()).isEqualByComparingTo("87.50");
+        assertThat(result.getNormalizedTier()).isEqualTo("S");
 
         verify(nlpAnalysisGateway, never()).annotateText(anyString());
     }
@@ -157,13 +162,15 @@ class QualitativeEvaluationProcessorTest {
             202604L,
             1001L,
             9003L,
+            9103L,
             2L,
             SecondEvaluationMode.ANALYZE_COMMENT,
             null,
             COMMENT,
             "TEXT",
             "v1",
-            LocalDateTime.of(2026, 4, 6, 11, 0)
+            LocalDateTime.of(2026, 4, 6, 11, 0),
+            List.of()
         );
 
         assertThatThrownBy(() -> processor.process(aggregate))
@@ -180,13 +187,15 @@ class QualitativeEvaluationProcessorTest {
             202604L,
             1001L,
             9005L,
+            9105L,
             3L,
             null,
             BigDecimal.valueOf(1.3200),
             null,
             "TEXT",
             "v1",
-            LocalDateTime.of(2026, 4, 6, 11, 30)
+            LocalDateTime.of(2026, 4, 6, 11, 30),
+            List.of()
         );
 
         assertThatThrownBy(() -> processor.process(aggregate))
@@ -202,13 +211,7 @@ class QualitativeEvaluationProcessorTest {
             new QualitativeCommentAnalyzer(
                 nlpAnalysisGateway,
                 new QualitativeChunkSplitter(),
-                new QualitativeKeywordScorer(() -> List.of(
-                    new QualitativeKeywordRule("equipment maintenance", BigDecimal.valueOf(0.30)),
-                    new QualitativeKeywordRule("proposal", BigDecimal.valueOf(0.20)),
-                    new QualitativeKeywordRule("yield", BigDecimal.valueOf(0.20)),
-                    new QualitativeKeywordRule("defect reduction", BigDecimal.valueOf(0.25)),
-                    new QualitativeKeywordRule("analysis", BigDecimal.valueOf(0.15))
-                )),
+                new QualitativeKeywordScorer(),
                 calculator
             ),
             new QualitativeEvaluationScorePolicy(calculator)

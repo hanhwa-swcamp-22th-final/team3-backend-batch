@@ -2,12 +2,15 @@ package com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.wr
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.normalization.model.QualitativeNormalizationResult;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.entity.QualitativeEvaluationEntity;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeEvaluationRepository;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.publisher.QualitativeNormalizationEventPublisher;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.entity.QualitativeScoreProjectionEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeScoreProjectionRepository;
 import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.util.List;
@@ -23,7 +26,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 class QualitativeNormalizationWriterTest {
 
     @Mock
-    private QualitativeEvaluationRepository qualitativeEvaluationRepository;
+    private QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository;
+
+    @Mock
+    private QualitativeNormalizationEventPublisher qualitativeNormalizationEventPublisher;
 
     @Test
     void write_shouldUpdateNormalizedScoreAndGrade() throws Exception {
@@ -34,25 +40,29 @@ class QualitativeNormalizationWriterTest {
             .grade("A")
             .build();
 
-        Constructor<QualitativeEvaluationEntity> constructor = QualitativeEvaluationEntity.class.getDeclaredConstructor();
+        Constructor<QualitativeScoreProjectionEntity> constructor = QualitativeScoreProjectionEntity.class.getDeclaredConstructor();
         constructor.setAccessible(true);
-        QualitativeEvaluationEntity entity = constructor.newInstance();
-        ReflectionTestUtils.setField(entity, "qualitativeEvaluationId", 10L);
-        ReflectionTestUtils.setField(entity, "score", BigDecimal.valueOf(1.3200));
+        QualitativeScoreProjectionEntity projection = constructor.newInstance();
+        ReflectionTestUtils.setField(projection, "qualitativeEvaluationId", 10L);
+        ReflectionTestUtils.setField(projection, "rawScore", BigDecimal.valueOf(1.3200));
 
-        when(qualitativeEvaluationRepository.findAllByQualitativeEvaluationIdIn(List.of(10L)))
-            .thenReturn(List.of(entity));
+        when(qualitativeScoreProjectionRepository.findAllByQualitativeEvaluationIdIn(List.of(10L)))
+            .thenReturn(List.of(projection));
 
-        QualitativeNormalizationWriter writer = new QualitativeNormalizationWriter(qualitativeEvaluationRepository);
+        QualitativeNormalizationWriter writer = new QualitativeNormalizationWriter(
+            qualitativeScoreProjectionRepository,
+            qualitativeNormalizationEventPublisher
+        );
         writer.write(new Chunk<>(List.of(result)));
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<QualitativeEvaluationEntity>> captor = ArgumentCaptor.forClass(List.class);
-        verify(qualitativeEvaluationRepository).saveAll(captor.capture());
-        QualitativeEvaluationEntity savedEntity = captor.getValue().get(0);
-        assertThat(savedEntity.getScore()).isEqualByComparingTo("1.32");
-        assertThat(savedEntity.getSQual()).isEqualByComparingTo("73.5");
-        assertThat(savedEntity.getGrade()).isEqualTo("A");
+        ArgumentCaptor<List<QualitativeScoreProjectionEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(qualitativeScoreProjectionRepository).saveAll(captor.capture());
+        QualitativeScoreProjectionEntity savedProjection = captor.getValue().get(0);
+        assertThat(savedProjection.getRawScore()).isEqualByComparingTo("1.32");
+        assertThat(savedProjection.getNormalizedScore()).isEqualByComparingTo("73.5");
+        assertThat(savedProjection.getGrade()).isEqualTo("A");
+        verify(qualitativeNormalizationEventPublisher).publishNormalized(any());
     }
 
     @Test
@@ -64,13 +74,17 @@ class QualitativeNormalizationWriterTest {
             .grade("B")
             .build();
 
-        when(qualitativeEvaluationRepository.findAllByQualitativeEvaluationIdIn(List.of(99L)))
+        when(qualitativeScoreProjectionRepository.findAllByQualitativeEvaluationIdIn(List.of(99L)))
             .thenReturn(List.of());
 
-        QualitativeNormalizationWriter writer = new QualitativeNormalizationWriter(qualitativeEvaluationRepository);
+        QualitativeNormalizationWriter writer = new QualitativeNormalizationWriter(
+            qualitativeScoreProjectionRepository,
+            qualitativeNormalizationEventPublisher
+        );
 
         assertThatThrownBy(() -> writer.write(new Chunk<>(List.of(result))))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("not found");
+        verify(qualitativeNormalizationEventPublisher, never()).publishNormalized(any());
     }
 }
