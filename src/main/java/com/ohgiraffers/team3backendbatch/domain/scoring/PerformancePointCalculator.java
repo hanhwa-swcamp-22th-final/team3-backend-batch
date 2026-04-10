@@ -7,6 +7,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class PerformancePointCalculator {
 
+    private static final BigDecimal PERCENTAGE_POINT_MULTIPLIER = BigDecimal.valueOf(60);
+    private static final BigDecimal RATIO_POINT_MULTIPLIER = BigDecimal.valueOf(6_000);
+
     /**
      * 퍼센트 기반 점수를 UI 표시용 기여점(0~10,000)으로 환산한다.
      *
@@ -22,7 +25,7 @@ public class PerformancePointCalculator {
      */
     public int percentageToContributionPoint(BigDecimal percentageScore) {
         return percentageScore
-            .multiply(BigDecimal.valueOf(100))
+            .multiply(PERCENTAGE_POINT_MULTIPLIER)
             .setScale(0, RoundingMode.HALF_UP)
             .intValue();
     }
@@ -36,7 +39,7 @@ public class PerformancePointCalculator {
      */
     public int ratioToContributionPoint(BigDecimal achievementRatio) {
         return achievementRatio
-            .multiply(BigDecimal.valueOf(10_000))
+            .multiply(RATIO_POINT_MULTIPLIER)
             .setScale(0, RoundingMode.HALF_UP)
             .intValue();
     }

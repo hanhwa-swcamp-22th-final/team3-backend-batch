@@ -22,7 +22,7 @@ public interface QuantitativeEvaluationRepository extends JpaRepository<Quantita
             AVG(q.tScore) AS averageTScore
         FROM QuantitativeEvaluationEntity q
         WHERE q.evaluationPeriodId = :evaluationPeriodId
-          AND q.status = 'SETTLED'
+          AND q.status = 'CONFIRMED'
           AND q.tScore IS NOT NULL
         GROUP BY q.employeeId
         ORDER BY q.employeeId
