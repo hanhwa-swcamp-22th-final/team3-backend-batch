@@ -1,8 +1,10 @@
 package com.ohgiraffers.team3backendbatch.batch.job.skillscore.processor;
 
+import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.job.skillscore.model.IntegratedScoreAggregate;
 import com.ohgiraffers.team3backendbatch.domain.scoring.MonthlySkillContributionCalculator;
 import com.ohgiraffers.team3backendbatch.domain.scoring.PerformancePointCalculator;
+import com.ohgiraffers.team3backendbatch.domain.scoring.TierAwareKpiScoreCalculator;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointCalculatedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.SkillGrowthCalculatedEvent;
 import java.math.BigDecimal;
@@ -21,9 +23,12 @@ public class IntegratedScoreProcessor
     private static final String POINT_SOURCE_TYPE = "EVALUATION_PERIOD_SETTLEMENT";
     private static final String QUANTITATIVE_POINT_TYPE = "QUANTITY";
     private static final String QUALITATIVE_POINT_TYPE = "QUALITATIVE";
+    private static final String KNOWLEDGE_SHARING_POINT_TYPE = "KNOWLEDGE_SHARING";
+    private static final String CHALLENGE_POINT_TYPE = "CHALLENGE";
 
     private final PerformancePointCalculator performancePointCalculator;
     private final MonthlySkillContributionCalculator monthlySkillContributionCalculator;
+    private final TierAwareKpiScoreCalculator tierAwareKpiScoreCalculator;
 
     @Override
     public IntegratedScoreAggregate process(IntegratedScoreAggregate item) {
@@ -31,30 +36,70 @@ public class IntegratedScoreProcessor
         Integer qualitativePoint = null;
         List<PerformancePointCalculatedEvent> events = new ArrayList<>();
         List<SkillGrowthCalculatedEvent> skillGrowthEvents = new ArrayList<>();
+        boolean officialSettlement = item.getPeriodType() == BatchPeriodType.MONTH;
 
-        if (item.getQuantitativeTScore() != null) {
-            quantitativePoint = performancePointCalculator.percentageToContributionPoint(item.getQuantitativeTScore());
-            events.add(buildEvent(item, QUANTITATIVE_POINT_TYPE, BigDecimal.valueOf(quantitativePoint), "Monthly quantitative settlement contribution"));
+        BigDecimal quantitativeBaseScore = tierAwareKpiScoreCalculator.resolveQuantitativeSettlementScore(
+            item.getEmployeeTier(),
+            item.getQuantitativeTScore(),
+            item.getQuantitativeProductivityScore(),
+            item.getQuantitativeQualityScore(),
+            item.getQuantitativeEquipmentResponseScore()
+        );
+
+        if (officialSettlement && quantitativeBaseScore != null) {
+            quantitativePoint = performancePointCalculator.percentageToContributionPoint(quantitativeBaseScore);
+            events.add(buildEvent(
+                item,
+                QUANTITATIVE_POINT_TYPE,
+                BigDecimal.valueOf(quantitativePoint),
+                tierAwareKpiScoreCalculator.isStrategicTier(item.getEmployeeTier())
+                    ? "Strategic-tier quantitative KPI settlement contribution"
+                    : "Monthly quantitative settlement contribution"
+            ));
         }
 
-        if (item.getQualitativeScore() != null) {
+        if (officialSettlement && item.getQualitativeScore() != null) {
             qualitativePoint = performancePointCalculator.percentageToContributionPoint(item.getQualitativeScore());
             events.add(buildEvent(item, QUALITATIVE_POINT_TYPE, BigDecimal.valueOf(qualitativePoint), "Monthly qualitative settlement contribution"));
         }
 
-        for (Map.Entry<String, BigDecimal> entry : monthlySkillContributionCalculator
-            .calculateMonthlySkillContributions(
-                item.getQuantitativeProductivityScore(),
-                item.getQuantitativeQualityScore(),
-                item.getQuantitativeEquipmentResponseScore(),
-                item.getQualitativeSkillScores()
-            )
-            .entrySet()) {
-            skillGrowthEvents.add(buildSkillGrowthEvent(item, entry.getKey(), entry.getValue()));
-        }
+        if (officialSettlement) {
+            int kmsApprovedArticleCount = item.getKmsApprovedArticleCount() == null ? 0 : item.getKmsApprovedArticleCount();
+            int challengeTaskCount = item.getChallengeTaskCount() == null ? 0 : item.getChallengeTaskCount();
 
-        if (events.isEmpty() && skillGrowthEvents.isEmpty()) {
-            return null;
+            int kmsPoint = performancePointCalculator.kmsContributionPoint(kmsApprovedArticleCount);
+            if (kmsPoint > 0) {
+                events.add(buildEvent(
+                    item,
+                    KNOWLEDGE_SHARING_POINT_TYPE,
+                    BigDecimal.valueOf(kmsPoint),
+                    "Monthly KMS approved article contribution"
+                ));
+            }
+
+            int challengePoint = performancePointCalculator.challengeContributionPoint(challengeTaskCount);
+            if (challengePoint > 0) {
+                events.add(buildEvent(
+                    item,
+                    CHALLENGE_POINT_TYPE,
+                    BigDecimal.valueOf(challengePoint),
+                    "Monthly high-difficulty work contribution"
+                ));
+            }
+
+            for (Map.Entry<String, BigDecimal> entry : monthlySkillContributionCalculator
+                .calculateMonthlySkillContributions(
+                    item.getEmployeeTier(),
+                    item.getQuantitativeProductivityScore(),
+                    item.getQuantitativeQualityScore(),
+                    item.getQuantitativeEquipmentResponseScore(),
+                    tierAwareKpiScoreCalculator.toKmsSignalScore(kmsApprovedArticleCount),
+                    tierAwareKpiScoreCalculator.toChallengeSignalScore(challengeTaskCount),
+                    item.getQualitativeSkillScores()
+                )
+                .entrySet()) {
+                skillGrowthEvents.add(buildSkillGrowthEvent(item, entry.getKey(), entry.getValue()));
+            }
         }
 
         return item.withCalculatedResults(quantitativePoint, qualitativePoint, events, skillGrowthEvents);

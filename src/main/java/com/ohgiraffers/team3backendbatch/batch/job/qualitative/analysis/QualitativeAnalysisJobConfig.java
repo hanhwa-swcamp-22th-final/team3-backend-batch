@@ -27,6 +27,7 @@ public class QualitativeAnalysisJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
     private final BatchJobLoggingListener batchJobLoggingListener;
+    private final QualitativeAnalysisJobCompletionListener qualitativeAnalysisJobCompletionListener;
     private final QualitativeEvaluationReader qualitativeEvaluationReader;
     private final QualitativeEvaluationProcessor qualitativeEvaluationProcessor;
     private final QualitativeAnalysisWriter qualitativeAnalysisWriter;
@@ -35,6 +36,7 @@ public class QualitativeAnalysisJobConfig {
     public Job qualitativeAnalysisJob() {
         return new JobBuilder(BatchJobNames.QUALITATIVE_ANALYSIS_JOB, jobRepository)
             .listener(batchJobLoggingListener)
+            .listener(qualitativeAnalysisJobCompletionListener)
             .start(qualitativeAnalysisStep())
             .build();
     }

@@ -22,7 +22,7 @@ class QualitativeSkillKeywordClassifierTest {
                 new MatchedKeywordDetail(1L, "maintenance", "TECHNICAL_COMPETENCE", new BigDecimal("0.30")),
                 new MatchedKeywordDetail(2L, "repair", "TECHNICAL_COMPETENCE", new BigDecimal("0.20")),
                 new MatchedKeywordDetail(3L, "inspection", "TECHNICAL_COMPETENCE", new BigDecimal("0.20")),
-                new MatchedKeywordDetail(4L, "productivity", "OTHER", new BigDecimal("0.10")),
+                new MatchedKeywordDetail(4L, "productivity", "OTHERS", new BigDecimal("0.10")),
                 new MatchedKeywordDetail(5L, "safety", "SAFETY", new BigDecimal("0.20"))
             )
         );

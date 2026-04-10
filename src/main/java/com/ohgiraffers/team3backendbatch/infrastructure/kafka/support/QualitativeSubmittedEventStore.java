@@ -23,4 +23,11 @@ public class QualitativeSubmittedEventStore {
         }
         return store.get(qualitativeEvaluationId);
     }
+
+    public void remove(Long qualitativeEvaluationId) {
+        if (qualitativeEvaluationId == null) {
+            return;
+        }
+        store.remove(qualitativeEvaluationId);
+    }
 }

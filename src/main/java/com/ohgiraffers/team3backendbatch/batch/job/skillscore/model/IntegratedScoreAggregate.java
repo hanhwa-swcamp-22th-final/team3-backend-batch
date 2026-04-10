@@ -18,6 +18,7 @@ import lombok.Getter;
 public class IntegratedScoreAggregate {
 
     private final Long employeeId;
+    private final String employeeTier;
     private final Long evaluationPeriodId;
     private final BatchPeriodType periodType;
     private final LocalDate pointEarnedDate;
@@ -28,6 +29,8 @@ public class IntegratedScoreAggregate {
     private final BigDecimal quantitativeEquipmentResponseScore;
     private final BigDecimal qualitativeScore;
     private final Map<String, BigDecimal> qualitativeSkillScores;
+    private final Integer kmsApprovedArticleCount;
+    private final Integer challengeTaskCount;
     private final Integer quantitativePoint;
     private final Integer qualitativePoint;
     private final List<PerformancePointCalculatedEvent> performancePointEvents;
