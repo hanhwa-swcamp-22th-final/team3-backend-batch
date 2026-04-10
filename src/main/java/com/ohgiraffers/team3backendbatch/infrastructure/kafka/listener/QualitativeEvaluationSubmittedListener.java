@@ -49,18 +49,23 @@ public class QualitativeEvaluationSubmittedListener {
 
         qualitativeSubmittedEventStore.put(resolvedEvent);
 
-        batchJobLauncherFacade.launch(
-            BatchJobNames.QUALITATIVE_ANALYSIS_JOB,
-            BatchJobLaunchRequest.builder()
-                .mode(ManualJobLaunchMode.EMPLOYEE)
-                .periodType(BatchPeriodType.MONTH)
-                .evaluationPeriodId(resolvedEvent.getEvaluationPeriodId())
-                .qualitativeEvaluationId(resolvedEvent.getQualitativeEvaluationId())
-                .force(Boolean.TRUE)
-                .requestedBy("hr-kafka")
-                .reason("Qualitative evaluation submitted event")
-                .build()
-        );
+        try {
+            batchJobLauncherFacade.launch(
+                BatchJobNames.QUALITATIVE_ANALYSIS_JOB,
+                BatchJobLaunchRequest.builder()
+                    .mode(ManualJobLaunchMode.EMPLOYEE)
+                    .periodType(BatchPeriodType.MONTH)
+                    .evaluationPeriodId(resolvedEvent.getEvaluationPeriodId())
+                    .qualitativeEvaluationId(resolvedEvent.getQualitativeEvaluationId())
+                    .force(Boolean.TRUE)
+                    .requestedBy("hr-kafka")
+                    .reason("Qualitative evaluation submitted event")
+                    .build()
+            );
+        } catch (Exception e) {
+            qualitativeSubmittedEventStore.remove(resolvedEvent.getQualitativeEvaluationId());
+            throw e;
+        }
     }
 
     private void upsertProjection(QualitativeEvaluationSubmittedEvent event) {

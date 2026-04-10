@@ -11,7 +11,7 @@ class PerformancePointCalculatorTest {
     private final PerformancePointCalculator performancePointCalculator = new PerformancePointCalculator();
 
     @Test
-    @DisplayName("정량/정성 점수는 60배 계수로 contribution point로 환산한다")
+    @DisplayName("percentage scores use the sixty-point multiplier")
     void percentageToContributionPointUsesSixtyMultiplier() {
         assertThat(performancePointCalculator.percentageToContributionPoint(new BigDecimal("60.00"))).isEqualTo(3600);
         assertThat(performancePointCalculator.percentageToContributionPoint(new BigDecimal("80.00"))).isEqualTo(4800);
@@ -19,7 +19,7 @@ class PerformancePointCalculatorTest {
     }
 
     @Test
-    @DisplayName("비율 기반 점수는 6000 만점 기준으로 contribution point를 계산한다")
+    @DisplayName("ratio scores use the six-thousand-point scale")
     void ratioToContributionPointUsesSixThousandScale() {
         assertThat(performancePointCalculator.ratioToContributionPoint(new BigDecimal("0.60"))).isEqualTo(3600);
         assertThat(performancePointCalculator.ratioToContributionPoint(new BigDecimal("0.80"))).isEqualTo(4800);
@@ -27,7 +27,7 @@ class PerformancePointCalculatorTest {
     }
 
     @Test
-    @DisplayName("KMS 기여점수는 기존 구간값을 유지한다")
+    @DisplayName("kms contribution retains the tiered bucket policy")
     void kmsContributionPointRetainsTieredBuckets() {
         assertThat(performancePointCalculator.kmsContributionPoint(0)).isEqualTo(0);
         assertThat(performancePointCalculator.kmsContributionPoint(1)).isEqualTo(4000);
@@ -35,5 +35,16 @@ class PerformancePointCalculatorTest {
         assertThat(performancePointCalculator.kmsContributionPoint(3)).isEqualTo(8000);
         assertThat(performancePointCalculator.kmsContributionPoint(4)).isEqualTo(9000);
         assertThat(performancePointCalculator.kmsContributionPoint(5)).isEqualTo(10000);
+    }
+
+    @Test
+    @DisplayName("challenge contribution uses stepped buckets for high-difficulty work")
+    void challengeContributionPointUsesTieredBuckets() {
+        assertThat(performancePointCalculator.challengeContributionPoint(0)).isEqualTo(0);
+        assertThat(performancePointCalculator.challengeContributionPoint(1)).isEqualTo(3000);
+        assertThat(performancePointCalculator.challengeContributionPoint(2)).isEqualTo(5000);
+        assertThat(performancePointCalculator.challengeContributionPoint(3)).isEqualTo(7000);
+        assertThat(performancePointCalculator.challengeContributionPoint(4)).isEqualTo(8500);
+        assertThat(performancePointCalculator.challengeContributionPoint(5)).isEqualTo(10000);
     }
 }

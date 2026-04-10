@@ -68,7 +68,7 @@ public class QualitativeSkillKeywordClassifier {
                 case "LEADERSHIP":
                     return null;
                 case "TECHNICAL_COMPETENCE":
-                case "OTHER":
+                case "OTHERS":
                 default:
                     break;
             }

@@ -69,4 +69,26 @@ public class PerformancePointCalculator {
         }
         return 10_000;
     }
+
+    /**
+     * Converts completed high-difficulty work count into challenge contribution points.
+     */
+    public int challengeContributionPoint(int challengeCount) {
+        if (challengeCount <= 0) {
+            return 0;
+        }
+        if (challengeCount == 1) {
+            return 3_000;
+        }
+        if (challengeCount == 2) {
+            return 5_000;
+        }
+        if (challengeCount == 3) {
+            return 7_000;
+        }
+        if (challengeCount == 4) {
+            return 8_500;
+        }
+        return 10_000;
+    }
 }

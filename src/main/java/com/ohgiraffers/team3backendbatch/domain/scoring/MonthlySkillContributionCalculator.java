@@ -14,43 +14,54 @@ public class MonthlySkillContributionCalculator {
     private static final BigDecimal HUNDRED = new BigDecimal("100.00");
 
     public Map<String, BigDecimal> calculateMonthlySkillContributions(
+        String employeeTier,
         BigDecimal quantitativeProductivityScore,
         BigDecimal quantitativeQualityScore,
         BigDecimal quantitativeEquipmentResponseScore,
+        BigDecimal kmsSignalScore,
+        BigDecimal challengeSignalScore,
         Map<String, BigDecimal> qualitativeSkillScores
     ) {
         Map<String, BigDecimal> contributions = new LinkedHashMap<>();
         Map<String, BigDecimal> qualitativeSignals = qualitativeSkillScores == null ? Map.of() : qualitativeSkillScores;
+        boolean strategicTier = employeeTier != null
+            && ("A".equalsIgnoreCase(employeeTier) || "S".equalsIgnoreCase(employeeTier));
 
         putIfPresent(contributions, "EQUIPMENT_RESPONSE",
             blend(
-                qualitativeSignals.get("EQUIPMENT_RESPONSE"), new BigDecimal("0.50"),
-                quantitativeEquipmentResponseScore, new BigDecimal("0.30")
+                qualitativeSignals.get("EQUIPMENT_RESPONSE"), strategicTier ? new BigDecimal("0.40") : new BigDecimal("0.50"),
+                quantitativeEquipmentResponseScore, strategicTier ? new BigDecimal("0.35") : new BigDecimal("0.30"),
+                kmsSignalScore, strategicTier ? new BigDecimal("0.25") : new BigDecimal("0.20")
             ));
         putIfPresent(contributions, "TECHNICAL_TRANSFER",
             blend(
-                qualitativeSignals.get("TECHNICAL_TRANSFER"), new BigDecimal("0.60"),
+                qualitativeSignals.get("TECHNICAL_TRANSFER"), strategicTier ? new BigDecimal("0.40") : new BigDecimal("0.60"),
+                kmsSignalScore, strategicTier ? new BigDecimal("0.60") : new BigDecimal("0.40"),
                 null, null
             ));
         putIfPresent(contributions, "INNOVATION_PROPOSAL",
             blend(
-                qualitativeSignals.get("INNOVATION_PROPOSAL"), new BigDecimal("0.50"),
-                null, null
+                qualitativeSignals.get("INNOVATION_PROPOSAL"), strategicTier ? new BigDecimal("0.35") : new BigDecimal("0.50"),
+                challengeSignalScore, strategicTier ? new BigDecimal("0.40") : new BigDecimal("0.30"),
+                kmsSignalScore, strategicTier ? new BigDecimal("0.25") : new BigDecimal("0.20")
             ));
         putIfPresent(contributions, "SAFETY_COMPLIANCE",
             blend(
                 qualitativeSignals.get("SAFETY_COMPLIANCE"), new BigDecimal("0.40"),
+                null, null,
                 null, null
             ));
         putIfPresent(contributions, "QUALITY_MANAGEMENT",
             blend(
                 qualitativeSignals.get("QUALITY_MANAGEMENT"), new BigDecimal("0.20"),
-                quantitativeQualityScore, new BigDecimal("0.60")
+                quantitativeQualityScore, strategicTier ? new BigDecimal("0.55") : new BigDecimal("0.60"),
+                kmsSignalScore, new BigDecimal("0.20")
             ));
         putIfPresent(contributions, "PRODUCTIVITY",
             blend(
-                qualitativeSignals.get("PRODUCTIVITY"), new BigDecimal("0.30"),
-                quantitativeProductivityScore, new BigDecimal("0.70")
+                qualitativeSignals.get("PRODUCTIVITY"), strategicTier ? new BigDecimal("0.20") : new BigDecimal("0.30"),
+                quantitativeProductivityScore, strategicTier ? new BigDecimal("0.50") : new BigDecimal("0.70"),
+                null, null
             ));
 
         return contributions;
@@ -64,7 +75,9 @@ public class MonthlySkillContributionCalculator {
         BigDecimal qualitativeScore,
         BigDecimal qualitativeWeight,
         BigDecimal quantitativeScore,
-        BigDecimal quantitativeWeight
+        BigDecimal quantitativeWeight,
+        BigDecimal auxiliaryScore,
+        BigDecimal auxiliaryWeight
     ) {
         BigDecimal weightedSum = ZERO;
         BigDecimal totalWeight = ZERO;
@@ -77,6 +90,11 @@ public class MonthlySkillContributionCalculator {
         if (quantitativeScore != null && quantitativeWeight != null) {
             weightedSum = weightedSum.add(sanitize(quantitativeScore).multiply(quantitativeWeight));
             totalWeight = totalWeight.add(quantitativeWeight);
+        }
+
+        if (auxiliaryScore != null && auxiliaryWeight != null) {
+            weightedSum = weightedSum.add(sanitize(auxiliaryScore).multiply(auxiliaryWeight));
+            totalWeight = totalWeight.add(auxiliaryWeight);
         }
 
         if (totalWeight.compareTo(BigDecimal.ZERO) == 0) {
