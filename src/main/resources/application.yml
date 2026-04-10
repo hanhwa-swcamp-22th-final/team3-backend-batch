@@ -1,6 +1,6 @@
 spring:
   application:
-    name: team3-backend-admin
+    name: team3-backend-batch
 
   profiles:
     include: db, secret
@@ -19,11 +19,6 @@ spring:
 
 mybatis:
   mapper-locations: classpath:mappers/**/*.xml
-  type-aliases-package: com.ohgiraffers.team3backendadmin
+  type-aliases-package: com.ohgiraffers.team3backendbatch
   configuration:
     map-underscore-to-camel-case: true
-
-# JWT
-jwt:
-  expiration: 1800000 # 30 minutes
-  refresh-expiration: 604800000 # 7 days
