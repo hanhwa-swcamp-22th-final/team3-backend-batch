@@ -69,4 +69,4 @@ batch:
 
 nlp:
   google:
-    credentials-location: classpath:gcp-key.json
+    credentials-location: ${NLP_GOOGLE_CREDENTIALS_LOCATION:classpath:gcp-key.json}
