@@ -1,6 +1,6 @@
-package com.ohgiraffers.team3backendbatch.batch.job.score.writer;
+package com.ohgiraffers.team3backendbatch.batch.job.skillscore.writer;
 
-import com.ohgiraffers.team3backendbatch.batch.job.score.model.IntegratedScoreAggregate;
+import com.ohgiraffers.team3backendbatch.batch.job.skillscore.model.IntegratedScoreAggregate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.Chunk;

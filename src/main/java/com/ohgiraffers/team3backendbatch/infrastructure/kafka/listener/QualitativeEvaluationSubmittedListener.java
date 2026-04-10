@@ -1,7 +1,5 @@
 package com.ohgiraffers.team3backendbatch.infrastructure.kafka.listener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchJobLaunchRequest;
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.api.command.dto.ManualJobLaunchMode;
@@ -9,6 +7,7 @@ import com.ohgiraffers.team3backendbatch.batch.common.launcher.BatchJobLauncherF
 import com.ohgiraffers.team3backendbatch.batch.common.support.BatchJobNames;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationSubmittedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.support.QualitativeKafkaTopics;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.support.QualitativeSubmittedEventStore;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.entity.QualitativeScoreProjectionEntity;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeScoreProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EvaluationPeriodProjectionRepository;
@@ -26,7 +25,7 @@ public class QualitativeEvaluationSubmittedListener {
     private static final String DEFAULT_ANALYSIS_STATUS = "SUBMITTED";
 
     private final BatchJobLauncherFacade batchJobLauncherFacade;
-    private final ObjectMapper objectMapper;
+    private final QualitativeSubmittedEventStore qualitativeSubmittedEventStore;
     private final QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository;
     private final EvaluationPeriodProjectionRepository evaluationPeriodProjectionRepository;
 
@@ -48,6 +47,8 @@ public class QualitativeEvaluationSubmittedListener {
             resolvedEvent.getKeywordRules() == null ? 0 : resolvedEvent.getKeywordRules().size()
         );
 
+        qualitativeSubmittedEventStore.put(resolvedEvent);
+
         batchJobLauncherFacade.launch(
             BatchJobNames.QUALITATIVE_ANALYSIS_JOB,
             BatchJobLaunchRequest.builder()
@@ -55,7 +56,6 @@ public class QualitativeEvaluationSubmittedListener {
                 .periodType(BatchPeriodType.MONTH)
                 .evaluationPeriodId(resolvedEvent.getEvaluationPeriodId())
                 .qualitativeEvaluationId(resolvedEvent.getQualitativeEvaluationId())
-                .qualitativeEventPayload(toPayload(resolvedEvent))
                 .force(Boolean.TRUE)
                 .requestedBy("hr-kafka")
                 .reason("Qualitative evaluation submitted event")
@@ -132,11 +132,4 @@ public class QualitativeEvaluationSubmittedListener {
         return status;
     }
 
-    private String toPayload(QualitativeEvaluationSubmittedEvent event) {
-        try {
-            return objectMapper.writeValueAsString(event);
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Failed to serialize qualitative submitted event payload.", exception);
-        }
-    }
 }

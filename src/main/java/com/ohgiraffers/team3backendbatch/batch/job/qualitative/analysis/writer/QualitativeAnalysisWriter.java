@@ -2,6 +2,7 @@ package com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.writer;
 
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeAnalysisResult;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationAnalyzedEvent;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.MatchedKeywordDetailEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeSentenceAnalysisEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.publisher.QualitativeAnalysisEventPublisher;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.entity.QualitativeScoreProjectionEntity;
@@ -105,6 +106,14 @@ public class QualitativeAnalysisWriter implements ItemWriter<QualitativeAnalysis
                 sentenceAnalysis.getNlpSentiment(),
                 sentenceAnalysis.getMatchedKeywordCount(),
                 sentenceAnalysis.getMatchedKeywords(),
+                sentenceAnalysis.getMatchedKeywordDetails().stream()
+                    .map(detail -> new MatchedKeywordDetailEvent(
+                        detail.getDomainKeywordId(),
+                        detail.getKeyword(),
+                        detail.getDomainCompetencyCategory(),
+                        detail.getScoreWeight()
+                    ))
+                    .toList(),
                 sentenceAnalysis.getContextWeight(),
                 sentenceAnalysis.isNegationDetected()
             ))

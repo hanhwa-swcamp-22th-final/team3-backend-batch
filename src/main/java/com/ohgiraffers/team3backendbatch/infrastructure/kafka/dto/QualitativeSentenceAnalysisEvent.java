@@ -16,6 +16,7 @@ public class QualitativeSentenceAnalysisEvent {
     private BigDecimal nlpSentiment;
     private Integer matchedKeywordCount;
     private List<String> matchedKeywords;
+    private List<MatchedKeywordDetailEvent> matchedKeywordDetails;
     private BigDecimal contextWeight;
     private Boolean negationDetected;
 }

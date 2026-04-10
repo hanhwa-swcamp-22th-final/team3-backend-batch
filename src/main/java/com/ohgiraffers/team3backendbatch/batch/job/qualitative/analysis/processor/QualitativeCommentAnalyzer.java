@@ -72,6 +72,7 @@ public class QualitativeCommentAnalyzer {
                     .nlpSentiment(responses.get(i).getSentimentScore())
                     .matchedKeywordCount(keywordScores.get(i).getMatchedKeywordCount())
                     .matchedKeywords(List.copyOf(keywordScores.get(i).getMatchedKeywords()))
+                    .matchedKeywordDetails(List.copyOf(keywordScores.get(i).getMatchedKeywordDetails()))
                     .contextWeight(contextWeight)
                     .negationDetected(responses.get(i).isNegationDetected())
                     .build()

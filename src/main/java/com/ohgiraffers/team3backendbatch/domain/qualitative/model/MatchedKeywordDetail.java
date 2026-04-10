@@ -6,7 +6,7 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class QualitativeKeywordRule {
+public class MatchedKeywordDetail {
 
     private final Long domainKeywordId;
     private final String keyword;
