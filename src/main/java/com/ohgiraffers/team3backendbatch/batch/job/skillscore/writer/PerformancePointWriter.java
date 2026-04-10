@@ -1,6 +1,6 @@
-package com.ohgiraffers.team3backendbatch.batch.job.score.writer;
+package com.ohgiraffers.team3backendbatch.batch.job.skillscore.writer;
 
-import com.ohgiraffers.team3backendbatch.batch.job.score.model.IntegratedScoreAggregate;
+import com.ohgiraffers.team3backendbatch.batch.job.skillscore.model.IntegratedScoreAggregate;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointCalculatedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.publisher.PerformancePointEventPublisher;
 import lombok.RequiredArgsConstructor;

@@ -19,7 +19,10 @@ public interface QuantitativeEvaluationRepository extends JpaRepository<Quantita
     @Query("""
         SELECT
             q.employeeId AS employeeId,
-            AVG(q.tScore) AS averageTScore
+            AVG(q.tScore) AS averageTScore,
+            AVG(q.uphScore) AS averageProductivityScore,
+            AVG(q.yieldScore) AS averageQualityScore,
+            AVG(q.leadTimeScore) AS averageEquipmentResponseScore
         FROM QuantitativeEvaluationEntity q
         WHERE q.evaluationPeriodId = :evaluationPeriodId
           AND q.status = 'CONFIRMED'
@@ -34,5 +37,8 @@ public interface QuantitativeEvaluationRepository extends JpaRepository<Quantita
     interface MonthlyQuantitativeScoreView {
         Long getEmployeeId();
         BigDecimal getAverageTScore();
+        BigDecimal getAverageProductivityScore();
+        BigDecimal getAverageQualityScore();
+        BigDecimal getAverageEquipmentResponseScore();
     }
 }

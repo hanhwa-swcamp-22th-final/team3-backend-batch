@@ -1,6 +1,7 @@
 package com.ohgiraffers.team3backendbatch.domain.qualitative.scoring;
 
 import com.ohgiraffers.team3backendbatch.domain.qualitative.model.KeywordScoreResult;
+import com.ohgiraffers.team3backendbatch.domain.qualitative.model.MatchedKeywordDetail;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.model.QualitativeKeywordRule;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -22,13 +23,13 @@ public class QualitativeKeywordScorer {
     private static final BigDecimal CONTEXT_DETAIL_WITH_NUMBER = BigDecimal.valueOf(1.10);
 
     private static final List<QualitativeKeywordRule> DEFAULT_POSITIVE_RULES = List.of(
-        new QualitativeKeywordRule("equipment maintenance", BigDecimal.valueOf(0.30)),
-        new QualitativeKeywordRule("defect reduction", BigDecimal.valueOf(0.25)),
-        new QualitativeKeywordRule("yield", BigDecimal.valueOf(0.20)),
-        new QualitativeKeywordRule("lead time", BigDecimal.valueOf(0.15)),
-        new QualitativeKeywordRule("proposal", BigDecimal.valueOf(0.20)),
-        new QualitativeKeywordRule("full inspection", BigDecimal.valueOf(0.20)),
-        new QualitativeKeywordRule("analysis", BigDecimal.valueOf(0.15))
+        new QualitativeKeywordRule(null, "equipment maintenance", null, BigDecimal.valueOf(0.30)),
+        new QualitativeKeywordRule(null, "defect reduction", null, BigDecimal.valueOf(0.25)),
+        new QualitativeKeywordRule(null, "yield", null, BigDecimal.valueOf(0.20)),
+        new QualitativeKeywordRule(null, "lead time", null, BigDecimal.valueOf(0.15)),
+        new QualitativeKeywordRule(null, "proposal", null, BigDecimal.valueOf(0.20)),
+        new QualitativeKeywordRule(null, "full inspection", null, BigDecimal.valueOf(0.20)),
+        new QualitativeKeywordRule(null, "analysis", null, BigDecimal.valueOf(0.15))
     );
 
     private static final Map<String, BigDecimal> NEGATIVE_KEYWORD_WEIGHTS = new LinkedHashMap<>();
@@ -55,12 +56,19 @@ public class QualitativeKeywordScorer {
 
         BigDecimal total = BigDecimal.ZERO;
         Set<String> matchedKeywords = new LinkedHashSet<>();
+        List<MatchedKeywordDetail> matchedKeywordDetails = new ArrayList<>();
 
         for (QualitativeKeywordRule rule : resolvePositiveRules(keywordRules)) {
             String keyword = normalize(rule.getKeyword());
             if (matchesKeyword(normalizedText, normalizedLemmas, keyword)) {
                 total = total.add(rule.getScoreWeight());
                 matchedKeywords.add(rule.getKeyword());
+                matchedKeywordDetails.add(new MatchedKeywordDetail(
+                    rule.getDomainKeywordId(),
+                    rule.getKeyword(),
+                    rule.getDomainCompetencyCategory(),
+                    rule.getScoreWeight()
+                ));
             }
         }
 
@@ -75,7 +83,8 @@ public class QualitativeKeywordScorer {
         return new KeywordScoreResult(
             clampKeywordWeightSum(total),
             matchedKeywords.size(),
-            new ArrayList<>(matchedKeywords)
+            new ArrayList<>(matchedKeywords),
+            List.copyOf(matchedKeywordDetails)
         );
     }
 

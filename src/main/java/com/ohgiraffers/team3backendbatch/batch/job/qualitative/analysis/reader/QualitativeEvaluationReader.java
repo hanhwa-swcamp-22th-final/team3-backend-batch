@@ -6,6 +6,7 @@ import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.Qu
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.SecondEvaluationMode;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.model.QualitativeKeywordRule;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationSubmittedEvent;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.support.QualitativeSubmittedEventStore;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,14 +23,20 @@ public class QualitativeEvaluationReader implements ItemReader<QualitativeEvalua
     private static final String DEFAULT_ANALYSIS_VERSION = "squal-v1";
 
     private final ObjectMapper objectMapper;
+    private final QualitativeSubmittedEventStore qualitativeSubmittedEventStore;
+    private final Long qualitativeEvaluationId;
     private final String qualitativeEventPayload;
     private boolean consumed;
 
     public QualitativeEvaluationReader(
         ObjectMapper objectMapper,
+        QualitativeSubmittedEventStore qualitativeSubmittedEventStore,
+        @Value("#{jobParameters['qualitativeEvaluationId']}") Long qualitativeEvaluationId,
         @Value("#{jobParameters['qualitativeEventPayload']}") String qualitativeEventPayload
     ) {
         this.objectMapper = objectMapper;
+        this.qualitativeSubmittedEventStore = qualitativeSubmittedEventStore;
+        this.qualitativeEvaluationId = qualitativeEvaluationId;
         this.qualitativeEventPayload = qualitativeEventPayload;
     }
 
@@ -39,10 +46,6 @@ public class QualitativeEvaluationReader implements ItemReader<QualitativeEvalua
             return null;
         }
         consumed = true;
-
-        if (qualitativeEventPayload == null || qualitativeEventPayload.isBlank()) {
-            throw new IllegalStateException("qualitativeEventPayload job parameter is required for qualitative analysis.");
-        }
 
         QualitativeEvaluationSubmittedEvent event = deserializePayload();
         QualitativeEvaluationAggregate aggregate = new QualitativeEvaluationAggregate(
@@ -74,6 +77,15 @@ public class QualitativeEvaluationReader implements ItemReader<QualitativeEvalua
     }
 
     private QualitativeEvaluationSubmittedEvent deserializePayload() {
+        QualitativeEvaluationSubmittedEvent cachedEvent = qualitativeSubmittedEventStore.get(qualitativeEvaluationId);
+        if (cachedEvent != null) {
+            return cachedEvent;
+        }
+
+        if (qualitativeEventPayload == null || qualitativeEventPayload.isBlank()) {
+            throw new IllegalStateException("qualitative evaluation snapshot is required for qualitative analysis.");
+        }
+
         try {
             return objectMapper.readValue(qualitativeEventPayload, QualitativeEvaluationSubmittedEvent.class);
         } catch (JsonProcessingException exception) {
@@ -95,7 +107,12 @@ public class QualitativeEvaluationReader implements ItemReader<QualitativeEvalua
         return event.getKeywordRules().stream()
             .filter(rule -> rule.getKeyword() != null && !rule.getKeyword().isBlank())
             .filter(rule -> rule.getScoreWeight() != null)
-            .map(rule -> new QualitativeKeywordRule(rule.getKeyword(), rule.getScoreWeight()))
+            .map(rule -> new QualitativeKeywordRule(
+                rule.getDomainKeywordId(),
+                rule.getKeyword(),
+                rule.getDomainCompetencyCategory(),
+                rule.getScoreWeight()
+            ))
             .toList();
     }
 }

@@ -12,4 +12,5 @@ public class KeywordScoreResult {
     private final BigDecimal keywordWeightSum;
     private final int matchedKeywordCount;
     private final List<String> matchedKeywords;
+    private final List<MatchedKeywordDetail> matchedKeywordDetails;
 }

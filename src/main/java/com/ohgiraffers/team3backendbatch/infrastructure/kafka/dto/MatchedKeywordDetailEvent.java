@@ -10,7 +10,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class QualitativeKeywordRuleEvent {
+public class MatchedKeywordDetailEvent {
 
     private Long domainKeywordId;
     private String keyword;

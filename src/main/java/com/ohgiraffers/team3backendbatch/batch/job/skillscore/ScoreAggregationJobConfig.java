@@ -1,13 +1,13 @@
-package com.ohgiraffers.team3backendbatch.batch.job.score;
+package com.ohgiraffers.team3backendbatch.batch.job.skillscore;
 
 import com.ohgiraffers.team3backendbatch.batch.common.listener.BatchJobLoggingListener;
 import com.ohgiraffers.team3backendbatch.batch.common.support.BatchJobNames;
-import com.ohgiraffers.team3backendbatch.batch.job.score.model.IntegratedScoreAggregate;
-import com.ohgiraffers.team3backendbatch.batch.job.score.processor.IntegratedScoreProcessor;
-import com.ohgiraffers.team3backendbatch.batch.job.score.reader.IntegratedScoreReader;
-import com.ohgiraffers.team3backendbatch.batch.job.score.writer.PerformancePointWriter;
-import com.ohgiraffers.team3backendbatch.batch.job.score.writer.ScoreWriter;
-import com.ohgiraffers.team3backendbatch.batch.job.score.writer.SkillWriter;
+import com.ohgiraffers.team3backendbatch.batch.job.skillscore.model.IntegratedScoreAggregate;
+import com.ohgiraffers.team3backendbatch.batch.job.skillscore.processor.IntegratedScoreProcessor;
+import com.ohgiraffers.team3backendbatch.batch.job.skillscore.reader.IntegratedScoreReader;
+import com.ohgiraffers.team3backendbatch.batch.job.skillscore.writer.PerformancePointWriter;
+import com.ohgiraffers.team3backendbatch.batch.job.skillscore.writer.ScoreWriter;
+import com.ohgiraffers.team3backendbatch.batch.job.skillscore.writer.SkillWriter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;

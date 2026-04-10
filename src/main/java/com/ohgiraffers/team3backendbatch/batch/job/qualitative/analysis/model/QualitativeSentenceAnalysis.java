@@ -19,6 +19,7 @@ public class QualitativeSentenceAnalysis {
     private final BigDecimal nlpSentiment;
     private final int matchedKeywordCount;
     private final List<String> matchedKeywords;
+    private final List<com.ohgiraffers.team3backendbatch.domain.qualitative.model.MatchedKeywordDetail> matchedKeywordDetails;
     private final BigDecimal contextWeight;
     private final boolean negationDetected;
 }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.QualitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.analysis.model.SecondEvaluationMode;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.QualitativeEvaluationSubmittedEvent;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.support.QualitativeSubmittedEventStore;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,12 @@ class QualitativeEvaluationReaderTest {
             null
         ));
 
-        QualitativeEvaluationReader reader = new QualitativeEvaluationReader(objectMapper, payload);
+        QualitativeEvaluationReader reader = new QualitativeEvaluationReader(
+            objectMapper,
+            new QualitativeSubmittedEventStore(),
+            1L,
+            payload
+        );
 
         QualitativeEvaluationAggregate aggregate = reader.read();
         assertThat(aggregate.getEvaluationId()).isEqualTo(1L);
@@ -73,7 +79,12 @@ class QualitativeEvaluationReaderTest {
             null
         ));
 
-        QualitativeEvaluationReader reader = new QualitativeEvaluationReader(objectMapper, payload);
+        QualitativeEvaluationReader reader = new QualitativeEvaluationReader(
+            objectMapper,
+            new QualitativeSubmittedEventStore(),
+            11L,
+            payload
+        );
 
         QualitativeEvaluationAggregate aggregate = reader.read();
         assertThat(aggregate.getEvaluationId()).isEqualTo(11L);
