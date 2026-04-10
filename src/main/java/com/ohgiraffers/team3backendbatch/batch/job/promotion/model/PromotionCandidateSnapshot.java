@@ -1,22 +1,26 @@
 package com.ohgiraffers.team3backendbatch.batch.job.promotion.model;
 
-/**
- * 승진 후보 판정 직전의 상태를 담는 모델 스켈레톤이다.
- *
- * 예상 필드:
- * - employeeId
- * - latestPeriodType
- * - latestEvaluationPeriodId
- * - currentTier
- * - targetTier
- * - tierAccumulatedPoint
- * - promotionThreshold
- * - hasPendingPromotion
- *
- * Reader가 이 모델을 만들고,
- * Processor가 후보 여부를 판정하며,
- * Writer가 promotion_history를 반영하는 흐름을 예상한다.
- */
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+
+@Getter
+@Builder
+@AllArgsConstructor
 public class PromotionCandidateSnapshot {
-    // TODO 승진 후보 판정 입력 필드 정의
+
+    private final Long employeeId;
+    private final Long evaluationPeriodId;
+    private final String periodType;
+    private final String currentTier;
+    private final String targetTier;
+    private final Long currentTierConfigId;
+    private final Long targetTierConfigId;
+    private final BigDecimal tierAccumulatedPoint;
+    private final Integer promotionThreshold;
+    private final LocalDate tierConfigEffectiveDate;
+    private final LocalDateTime occurredAt;
 }

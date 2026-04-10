@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "environment_event_projection")
+@Table(catalog = "batch_projection", name = "environment_event_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class EnvironmentEventProjectionEntity {
@@ -20,10 +20,16 @@ public class EnvironmentEventProjectionEntity {
 
     @Id
     @Column(name = "environment_event_id")
-    private Long environmentEventId;
+    private String environmentEventId;
 
-    @Column(name = "equipment_id", nullable = false)
+    @Column(name = "equipment_id")
     private Long equipmentId;
+
+    @Column(name = "environment_standard_id")
+    private Long environmentStandardId;
+
+    @Column(name = "source_equipment_code")
+    private String sourceEquipmentCode;
 
     @Column(name = "env_temperature")
     private BigDecimal envTemperature;
@@ -43,9 +49,6 @@ public class EnvironmentEventProjectionEntity {
     @Column(name = "env_detected_at")
     private LocalDateTime envDetectedAt;
 
-    @Column(name = "deleted")
-    private Boolean deleted;
-
     @Column(name = "occurred_at")
     private LocalDateTime occurredAt;
 
@@ -62,15 +65,16 @@ public class EnvironmentEventProjectionEntity {
     private Long updatedBy;
 
     public static EnvironmentEventProjectionEntity create(
-        Long environmentEventId,
+        String environmentEventId,
         Long equipmentId,
+        Long environmentStandardId,
+        String sourceEquipmentCode,
         BigDecimal envTemperature,
         BigDecimal envHumidity,
         Integer envParticleCnt,
         String envDeviationType,
         Boolean envCorrectionApplied,
         LocalDateTime envDetectedAt,
-        Boolean deleted,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
@@ -78,13 +82,14 @@ public class EnvironmentEventProjectionEntity {
         entity.environmentEventId = environmentEventId;
         entity.refreshSnapshot(
             equipmentId,
+            environmentStandardId,
+            sourceEquipmentCode,
             envTemperature,
             envHumidity,
             envParticleCnt,
             envDeviationType,
             envCorrectionApplied,
             envDetectedAt,
-            deleted,
             occurredAt,
             now
         );
@@ -95,24 +100,26 @@ public class EnvironmentEventProjectionEntity {
 
     public void refreshSnapshot(
         Long equipmentId,
+        Long environmentStandardId,
+        String sourceEquipmentCode,
         BigDecimal envTemperature,
         BigDecimal envHumidity,
         Integer envParticleCnt,
         String envDeviationType,
         Boolean envCorrectionApplied,
         LocalDateTime envDetectedAt,
-        Boolean deleted,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
         this.equipmentId = equipmentId;
+        this.environmentStandardId = environmentStandardId;
+        this.sourceEquipmentCode = sourceEquipmentCode;
         this.envTemperature = envTemperature;
         this.envHumidity = envHumidity;
         this.envParticleCnt = envParticleCnt;
         this.envDeviationType = envDeviationType;
         this.envCorrectionApplied = envCorrectionApplied;
         this.envDetectedAt = envDetectedAt;
-        this.deleted = deleted;
         this.occurredAt = occurredAt;
         this.updatedAt = now;
         this.updatedBy = SYSTEM_ACTOR_ID;

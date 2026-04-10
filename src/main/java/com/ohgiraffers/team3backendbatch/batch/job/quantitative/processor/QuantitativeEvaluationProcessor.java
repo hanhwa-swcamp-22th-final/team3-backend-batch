@@ -44,6 +44,7 @@ public class QuantitativeEvaluationProcessor
             item.getMaintenanceWeightedScoreSum(),
             item.getMaintenanceWeightSum()
         );
+        BigDecimal etaMaint = quantitativeScoreCalculator.calculateEtaMaint(nMaint);
         BigDecimal nEnv = quantitativeScoreCalculator.calculateNEnv(
             item.getEnvironmentTemperature(),
             item.getEnvironmentTempMin(),
@@ -76,13 +77,16 @@ public class QuantitativeEvaluationProcessor
             item.getEquipmentGrade(),
             nAge,
             etaAge,
-            nMaint,
+            etaMaint,
             nEnv,
             materialShielding
         );
-        BigDecimal pError = quantitativeScoreCalculator.calculatePError(
-            resolvedActualError,
+        BigDecimal adjustedBaselineError = quantitativeScoreCalculator.calculateAdjustedBaselineError(
             resolvedBaselineError,
+            eIdx
+        );
+        BigDecimal effectiveActualError = quantitativeScoreCalculator.calculateEffectiveActualError(
+            resolvedActualError,
             materialShielding
         );
         BigDecimal bonusPoint = quantitativeScoreCalculator.calculateBonusPoint(
@@ -91,8 +95,8 @@ public class QuantitativeEvaluationProcessor
             item.getCurrentSkillTier()
         );
         BigDecimal provisionalSQuant = quantitativeScoreCalculator.calculateProvisionalSQuantFromErrorRate(
-            resolvedActualError,
-            resolvedBaselineError,
+            effectiveActualError,
+            adjustedBaselineError,
             difficultyAdjustment,
             bonusPoint,
             qBase
@@ -129,6 +133,7 @@ public class QuantitativeEvaluationProcessor
             .nAge(nAge)
             .etaAge(etaAge)
             .nMaint(nMaint)
+            .etaMaint(etaMaint)
             .nEnv(nEnv)
             .materialShielding(materialShielding)
             .uphScore(uphScore)

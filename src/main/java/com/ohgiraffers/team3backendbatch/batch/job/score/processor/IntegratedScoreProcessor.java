@@ -1,31 +1,66 @@
 package com.ohgiraffers.team3backendbatch.batch.job.score.processor;
 
 import com.ohgiraffers.team3backendbatch.batch.job.score.model.IntegratedScoreAggregate;
+import com.ohgiraffers.team3backendbatch.domain.scoring.PerformancePointCalculator;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointCalculatedEvent;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
-/**
- * 정량/정성/KMS 데이터를 통합해 score, skill, performance_point 갱신 값을 만드는 Processor 스켈레톤이다.
- *
- * 구현 예정 메서드/내용:
- * - buildMonthlySettlementResult(...)
- * - buildUpperPeriodSummaryResult(...)
- * - buildPreviewOnlyResult(...)
- * - calculateCapabilityIndex(...)
- * - calculateTotalPoints(...)
- * - buildPerformanceHistory(...)
- *
- * 주의:
- * - WEEK preview 결과는 공식 current score/skill 누적 로직에 합산하지 않는다.
- * - QUARTER/HALF_YEAR/YEAR 는 raw `mes_*` 재계산이 아니라 월간 settlement 결과를 집계한다.
- */
 @Component
+@RequiredArgsConstructor
 public class IntegratedScoreProcessor
     implements ItemProcessor<IntegratedScoreAggregate, IntegratedScoreAggregate> {
 
+    private static final String POINT_SOURCE_TYPE = "EVALUATION_PERIOD_SETTLEMENT";
+    private static final String QUANTITATIVE_POINT_TYPE = "QUANTITY";
+    private static final String QUALITATIVE_POINT_TYPE = "QUALITATIVE";
+
+    private final PerformancePointCalculator performancePointCalculator;
+
     @Override
     public IntegratedScoreAggregate process(IntegratedScoreAggregate item) {
-        // TODO score, skill, performance_point 결과 모델 생성
-        return item;
+        Integer quantitativePoint = null;
+        Integer qualitativePoint = null;
+        List<PerformancePointCalculatedEvent> events = new ArrayList<>();
+
+        if (item.getQuantitativeTScore() != null) {
+            quantitativePoint = performancePointCalculator.percentageToContributionPoint(item.getQuantitativeTScore());
+            events.add(buildEvent(item, QUANTITATIVE_POINT_TYPE, BigDecimal.valueOf(quantitativePoint), "Monthly quantitative settlement contribution"));
+        }
+
+        if (item.getQualitativeScore() != null) {
+            qualitativePoint = performancePointCalculator.percentageToContributionPoint(item.getQualitativeScore());
+            events.add(buildEvent(item, QUALITATIVE_POINT_TYPE, BigDecimal.valueOf(qualitativePoint), "Monthly qualitative settlement contribution"));
+        }
+
+        if (events.isEmpty()) {
+            return null;
+        }
+
+        return item.withCalculatedPoints(quantitativePoint, qualitativePoint, events);
+    }
+
+    private PerformancePointCalculatedEvent buildEvent(
+        IntegratedScoreAggregate item,
+        String pointType,
+        BigDecimal pointAmount,
+        String description
+    ) {
+        return PerformancePointCalculatedEvent.builder()
+            .employeeId(item.getEmployeeId())
+            .evaluationPeriodId(item.getEvaluationPeriodId())
+            .periodType(item.getPeriodType().name())
+            .pointType(pointType)
+            .pointAmount(pointAmount)
+            .pointEarnedDate(item.getPointEarnedDate())
+            .pointSourceId(item.getEvaluationPeriodId())
+            .pointSourceType(POINT_SOURCE_TYPE)
+            .pointDescription(description)
+            .occurredAt(item.getOccurredAt())
+            .build();
     }
 }

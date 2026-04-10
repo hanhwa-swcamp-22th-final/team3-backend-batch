@@ -76,6 +76,7 @@ public class QuantitativeEvaluationAggregate {
     private final BigDecimal nAge;
     private final BigDecimal etaAge;
     private final BigDecimal nMaint;
+    private final BigDecimal etaMaint;
     private final BigDecimal nEnv;
     private final BigDecimal materialShielding;
     private final BigDecimal uphScore;
@@ -96,6 +97,7 @@ public class QuantitativeEvaluationAggregate {
             .nAge(result.getNAge())
             .etaAge(result.getEtaAge())
             .nMaint(result.getNMaint())
+            .etaMaint(result.getEtaMaint())
             .nEnv(result.getNEnv())
             .materialShielding(result.getMaterialShielding())
             .uphScore(result.getUphScore())

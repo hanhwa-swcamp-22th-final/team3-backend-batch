@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "order_difficulty_projection")
+@Table(catalog = "batch_projection", name = "order_difficulty_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderDifficultyProjectionEntity {

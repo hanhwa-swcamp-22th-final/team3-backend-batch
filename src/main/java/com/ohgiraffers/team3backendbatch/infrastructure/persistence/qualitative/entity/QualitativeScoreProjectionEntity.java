@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "qualitative_score_projection")
+@Table(catalog = "batch_projection", name = "qualitative_score_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class QualitativeScoreProjectionEntity {
@@ -31,7 +31,7 @@ public class QualitativeScoreProjectionEntity {
     @Column(name = "evaluation_level", nullable = false)
     private Long evaluationLevel;
 
-    @Column(name = "algorithm_version_id", nullable = false)
+    @Column(name = "algorithm_version_id")
     private Long algorithmVersionId;
 
     @Column(name = "analysis_version")

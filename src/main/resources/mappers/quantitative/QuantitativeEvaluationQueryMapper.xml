@@ -16,14 +16,14 @@
                 qep.end_date AS endDate,
                 qep.parameters AS parameters,
                 qep.reference_values AS referenceValues
-            FROM evaluation_period_projection qep
+            FROM batch_projection.evaluation_period_projection qep
             WHERE qep.evaluation_period_id = #{evaluationPeriodId}
         ),
         deployment_scope AS (
             SELECT DISTINCT
                 wdp.employee_id AS employeeId,
                 wdp.equipment_id AS equipmentId
-            FROM worker_deployment_projection wdp
+            FROM batch_projection.worker_deployment_projection wdp
             JOIN target_period tp
               ON wdp.start_date &lt;= tp.endDate
              AND (wdp.end_date IS NULL OR wdp.end_date &gt;= tp.startDate)
@@ -37,28 +37,77 @@
                 mpr.equipment_id AS equipmentId,
                 SUM(COALESCE(mpr.input_qty, 0)) AS totalInputQty,
                 SUM(COALESCE(mpr.good_qty, 0)) AS totalGoodQty,
+                SUM(COALESCE(mpr.defect_qty, 0)) AS totalDefectQty,
                 AVG(NULLIF(mpr.lead_time_sec, 0)) AS averageLeadTimeSec
-            FROM mes_production_result mpr
+            FROM batch_projection.mes_production_result_projection mpr
             JOIN target_period tp
-              ON mpr.work_date BETWEEN tp.startDate AND tp.endDate
+              ON DATE(mpr.start_time) BETWEEN tp.startDate AND tp.endDate
             GROUP BY mpr.equipment_id
+        ),
+        production_lot_scope AS (
+            SELECT DISTINCT
+                ds.employeeId AS employeeId,
+                ds.equipmentId AS equipmentId,
+                mpr.input_lot_no AS inputLotNo
+            FROM deployment_scope ds
+            JOIN batch_projection.mes_production_result_projection mpr
+              ON mpr.equipment_id = ds.equipmentId
+            JOIN target_period tp
+              ON DATE(mpr.start_time) BETWEEN tp.startDate AND tp.endDate
+            WHERE mpr.input_lot_no IS NOT NULL
+              AND TRIM(mpr.input_lot_no) &lt;&gt; ''
         ),
         quality_agg AS (
             SELECT
                 mqr.equipment_id AS equipmentId,
-                SUM(COALESCE(mqr.defect_qty, 0)) AS totalDefectQty,
-                AVG(mqr.actual_error) AS actualError
-            FROM mes_quality_result mqr
+                COUNT(*) AS totalQualityResultCount,
+                SUM(CASE WHEN LOWER(COALESCE(mqr.overall_result, '')) = 'fail' THEN 1 ELSE 0 END) AS failedQualityResultCount
+            FROM batch_projection.mes_quality_result_projection mqr
             JOIN target_period tp
-              ON mqr.work_date BETWEEN tp.startDate AND tp.endDate
+              ON DATE(mqr.event_time_stamp) BETWEEN tp.startDate AND tp.endDate
             GROUP BY mqr.equipment_id
+        ),
+        quality_lot_result AS (
+            SELECT
+                mqr.equipment_id AS equipmentId,
+                mqr.input_lot_no AS inputLotNo,
+                MAX(CASE WHEN LOWER(COALESCE(mqr.overall_result, '')) = 'fail' THEN 1 ELSE 0 END) AS hasFailedLot
+            FROM batch_projection.mes_quality_result_projection mqr
+            JOIN target_period tp
+              ON DATE(mqr.event_time_stamp) BETWEEN tp.startDate AND tp.endDate
+            WHERE mqr.input_lot_no IS NOT NULL
+              AND TRIM(mqr.input_lot_no) &lt;&gt; ''
+            GROUP BY mqr.equipment_id, mqr.input_lot_no
+        ),
+        lot_defect_agg AS (
+            SELECT
+                pls.employeeId AS employeeId,
+                SUM(CASE WHEN COALESCE(qlr.hasFailedLot, 0) = 1 THEN 1 ELSE 0 END) AS defectiveWorkersSameLot,
+                COUNT(*) AS totalWorkersSameLot
+            FROM production_lot_scope pls
+            LEFT JOIN quality_lot_result qlr
+              ON qlr.equipmentId = pls.equipmentId
+             AND qlr.inputLotNo = pls.inputLotNo
+            GROUP BY pls.employeeId
         ),
         status_agg AS (
             SELECT
                 mes.equipment_id AS equipmentId,
-                SUM(COALESCE(mes.downtime_minutes, 0)) AS downtimeMinutes,
-                SUM(COALESCE(mes.maintenance_minutes, 0)) AS maintenanceMinutes
-            FROM mes_equipment_status mes
+                SUM(
+                    CASE
+                        WHEN mes.status_type IN ('정지', '에러')
+                            THEN GREATEST(TIMESTAMPDIFF(MINUTE, mes.start_time_stamp, mes.end_time_stamp), 0)
+                        ELSE 0
+                    END
+                ) AS downtimeMinutes,
+                SUM(
+                    CASE
+                        WHEN mes.status_type = '점검'
+                            THEN GREATEST(TIMESTAMPDIFF(MINUTE, mes.start_time_stamp, mes.end_time_stamp), 0)
+                        ELSE 0
+                    END
+                ) AS maintenanceMinutes
+            FROM batch_projection.mes_equipment_status_projection mes
             JOIN target_period tp
               ON DATE(mes.start_time_stamp) BETWEEN tp.startDate AND tp.endDate
             GROUP BY mes.equipment_id
@@ -71,8 +120,8 @@
                     * mis.maintenance_weight * 100
                 ) AS maintenanceWeightedScoreSum,
                 SUM(mis.maintenance_weight) AS maintenanceWeightSum
-            FROM maintenance_log_projection ml
-            JOIN maintenance_item_standard_projection mis
+            FROM batch_projection.maintenance_log_projection ml
+            JOIN batch_projection.maintenance_item_standard_projection mis
               ON mis.maintenance_item_standard_id = ml.maintenance_item_standard_id
             JOIN target_period tp
               ON ml.maintenance_date BETWEEN tp.startDate AND tp.endDate
@@ -86,10 +135,9 @@
                 AVG(ee.env_temperature) AS environmentTemperature,
                 AVG(ee.env_humidity) AS environmentHumidity,
                 AVG(ee.env_particle_cnt) AS environmentParticleCount
-            FROM environment_event_projection ee
+            FROM batch_projection.environment_event_projection ee
             JOIN target_period tp
               ON DATE(ee.env_detected_at) BETWEEN tp.startDate AND tp.endDate
-            WHERE COALESCE(ee.deleted, 0) = 0
             GROUP BY ee.equipment_id
         ),
         difficulty_agg AS (
@@ -97,8 +145,8 @@
                 oap.employee_id AS employeeId,
                 AVG(odp.difficulty_score) AS difficultyScore,
                 MAX(odp.difficulty_grade) AS difficultyGrade
-            FROM order_assignment_projection oap
-            JOIN order_difficulty_projection odp
+            FROM batch_projection.order_assignment_projection oap
+            JOIN batch_projection.order_difficulty_projection odp
               ON odp.order_id = oap.order_id
             JOIN target_period tp
               ON DATE(COALESCE(oap.assigned_at, oap.occurred_at)) BETWEEN tp.startDate AND tp.endDate
@@ -116,7 +164,7 @@
             GROUP BY agf.employee_id
         )
         SELECT
-            qe.quantitative_evaluation_id AS quantitativeEvaluationId,
+            NULL AS quantitativeEvaluationId,
             ds.employeeId AS employeeId,
             tp.evaluationPeriodId AS evaluationPeriodId,
             ds.equipmentId AS equipmentId,
@@ -124,7 +172,7 @@
             tp.endDate AS evaluationPeriodEndDate,
             pa.totalInputQty AS totalInputQty,
             pa.totalGoodQty AS totalGoodQty,
-            COALESCE(qa.totalDefectQty, pa.totalInputQty - pa.totalGoodQty) AS totalDefectQty,
+            COALESCE(pa.totalDefectQty, pa.totalInputQty - pa.totalGoodQty) AS totalDefectQty,
             pa.averageLeadTimeSec AS averageLeadTimeSec,
             sa.downtimeMinutes AS downtimeMinutes,
             sa.maintenanceMinutes AS maintenanceMinutes,
@@ -144,16 +192,16 @@
             ea.environmentTemperature AS environmentTemperature,
             ea.environmentHumidity AS environmentHumidity,
             ea.environmentParticleCount AS environmentParticleCount,
-            erp.env_temp_min AS environmentTempMin,
-            erp.env_temp_max AS environmentTempMax,
-            erp.env_humidity_min AS environmentHumidityMin,
-            erp.env_humidity_max AS environmentHumidityMax,
-            erp.env_particle_limit AS environmentParticleLimit,
+            esp.env_temp_min AS environmentTempMin,
+            esp.env_temp_max AS environmentTempMax,
+            esp.env_humidity_min AS environmentHumidityMin,
+            esp.env_humidity_max AS environmentHumidityMax,
+            esp.env_particle_limit AS environmentParticleLimit,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.environment.tempWeight')) AS DECIMAL(10, 2)) AS environmentTempWeight,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.environment.humidityWeight')) AS DECIMAL(10, 2)) AS environmentHumidityWeight,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.environment.particleWeight')) AS DECIMAL(10, 2)) AS environmentParticleWeight,
-            NULL AS defectiveWorkersSameLot,
-            NULL AS totalWorkersSameLot,
+            lda.defectiveWorkersSameLot AS defectiveWorkersSameLot,
+            lda.totalWorkersSameLot AS totalWorkersSameLot,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.lotDefectThreshold')) AS DECIMAL(10, 2)) AS lotDefectThreshold,
             da.difficultyScore AS difficultyScore,
             da.difficultyGrade AS difficultyGrade,
@@ -165,7 +213,7 @@
             ag.antiGamingPenalty AS antiGamingPenalty,
             NULL AS groupMean,
             NULL AS groupStdDev,
-            qa.actualError AS actualError
+            NULL AS actualError
         FROM deployment_scope ds
         JOIN target_period tp
           ON 1 = 1
@@ -179,23 +227,21 @@
           ON ma.equipmentId = ds.equipmentId
         LEFT JOIN environment_agg ea
           ON ea.equipmentId = ds.equipmentId
-        LEFT JOIN employee_projection ep
+        LEFT JOIN batch_projection.employee_projection ep
           ON ep.employee_id = ds.employeeId
-        LEFT JOIN equipment_reference_projection erp
+        LEFT JOIN batch_projection.equipment_reference_projection erp
           ON erp.equipment_id = ds.equipmentId
          AND COALESCE(erp.deleted, 0) = 0
+        LEFT JOIN batch_projection.environment_standard_projection esp
+          ON esp.environment_standard_id = erp.environment_standard_id
+         AND COALESCE(esp.deleted, 0) = 0
         LEFT JOIN difficulty_agg da
           ON da.employeeId = ds.employeeId
+        LEFT JOIN lot_defect_agg lda
+          ON lda.employeeId = ds.employeeId
         LEFT JOIN anti_gaming ag
           ON ag.employeeId = ds.employeeId
-        LEFT JOIN quantitative_evaluation qe
-          ON qe.employee_id = ds.employeeId
-         AND qe.eval_period_id = tp.evaluationPeriodId
-         AND qe.equipment_id = ds.equipmentId
         WHERE COALESCE(pa.totalInputQty, 0) &gt; 0
-          <if test="!force">
-              AND (qe.quantitative_evaluation_id IS NULL OR qe.status &lt;&gt; 'SETTLED')
-          </if>
         ORDER BY ds.employeeId, ds.equipmentId
     </select>
 </mapper>

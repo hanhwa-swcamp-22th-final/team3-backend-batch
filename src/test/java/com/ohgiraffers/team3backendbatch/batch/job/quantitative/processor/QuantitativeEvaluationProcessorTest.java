@@ -42,6 +42,7 @@ class QuantitativeEvaluationProcessorTest {
         assertThat(result.getNAge()).isEqualByComparingTo("0.00");
         assertThat(result.getEtaAge()).isEqualByComparingTo("1.00");
         assertThat(result.getNMaint()).isEqualByComparingTo("1.00");
+        assertThat(result.getEtaMaint()).isEqualByComparingTo("1.00");
         assertThat(result.getNEnv()).isEqualByComparingTo("0.00");
         assertThat(result.getMaterialShielding()).isEqualByComparingTo("0.00");
         assertThat(result.getUphScore()).isEqualByComparingTo("100.00");

@@ -1,22 +1,40 @@
 package com.ohgiraffers.team3backendbatch.batch.job.score.model;
 
-/**
- * 통합 점수 계산 직전에 필요한 데이터를 모은 모델 스켈레톤이다.
- *
- * 예상 입력:
- * - periodType
- * - evaluationPeriodId
- * - quantitative evaluation 최종값
- * - qualitative evaluation 최종값
- * - KMS 승인 건수 또는 카테고리별 기여값
- * - 기존 score current 값
- * - 기존 skill current 값
- *
- * 예상 출력 대상:
- * - score
- * - skill
- * - performance_point
- */
+import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointCalculatedEvent;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+
+@Getter
+@Builder(toBuilder = true)
+@AllArgsConstructor
 public class IntegratedScoreAggregate {
-    // TODO 직원별 통합 점수 계산 입력 필드 정의
+
+    private final Long employeeId;
+    private final Long evaluationPeriodId;
+    private final BatchPeriodType periodType;
+    private final LocalDate pointEarnedDate;
+    private final LocalDateTime occurredAt;
+    private final BigDecimal quantitativeTScore;
+    private final BigDecimal qualitativeScore;
+    private final Integer quantitativePoint;
+    private final Integer qualitativePoint;
+    private final List<PerformancePointCalculatedEvent> performancePointEvents;
+
+    public IntegratedScoreAggregate withCalculatedPoints(
+        Integer quantitativePoint,
+        Integer qualitativePoint,
+        List<PerformancePointCalculatedEvent> performancePointEvents
+    ) {
+        return this.toBuilder()
+            .quantitativePoint(quantitativePoint)
+            .qualitativePoint(qualitativePoint)
+            .performancePointEvents(performancePointEvents == null ? List.of() : List.copyOf(performancePointEvents))
+            .build();
+    }
 }

@@ -24,13 +24,13 @@ public interface QualitativePeriodSummaryProjectionRepository
                 COUNT(*) AS sourceMonthCount,
                 COALESCE(AVG(selected.raw_score), 0) AS averageRawScore,
                 COALESCE(AVG(selected.normalized_score), 0) AS averageNormalizedScore
-            FROM qualitative_score_projection selected
+            FROM batch_projection.qualitative_score_projection selected
             JOIN (
                 SELECT
                     qsp.evaluation_period_id AS evaluationPeriodId,
                     qsp.evaluatee_id AS evaluateeId,
                     MAX(qsp.evaluation_level) AS latestEvaluationLevel
-                FROM qualitative_score_projection qsp
+                FROM batch_projection.qualitative_score_projection qsp
                 JOIN evaluation_period source_ep
                   ON source_ep.eval_period_id = qsp.evaluation_period_id
                 JOIN evaluation_period target_ep

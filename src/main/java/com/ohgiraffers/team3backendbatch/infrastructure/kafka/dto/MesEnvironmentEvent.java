@@ -11,16 +11,14 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class EnvironmentEventSnapshotEvent {
+public class MesEnvironmentEvent {
 
-    private Long environmentEventId;
+    private String eventId;
     private Long equipmentId;
+    private String sourceEquipmentCode;
     private BigDecimal envTemperature;
     private BigDecimal envHumidity;
     private Integer envParticleCnt;
-    private String envDeviationType;
-    private Boolean envCorrectionApplied;
     private LocalDateTime envDetectedAt;
-    private Boolean deleted;
     private LocalDateTime occurredAt;
 }
