@@ -16,6 +16,7 @@ public class QuantitativeEvaluationSourceRow {
     private Long evaluationPeriodId;
     private Long equipmentId;
     private Long algorithmVersionId;
+    private String policyConfig;
     private LocalDate evaluationPeriodEndDate;
     private BigDecimal totalInputQty;
     private BigDecimal totalGoodQty;

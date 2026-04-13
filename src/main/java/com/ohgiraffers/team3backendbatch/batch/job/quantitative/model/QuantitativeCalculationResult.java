@@ -13,6 +13,7 @@ public class QuantitativeCalculationResult {
     private final BigDecimal actualError;
     private final BigDecimal nAge;
     private final BigDecimal etaAge;
+    private final Integer equipmentAgeMonths;
     private final BigDecimal nMaint;
     private final BigDecimal etaMaint;
     private final BigDecimal nEnv;
@@ -24,6 +25,8 @@ public class QuantitativeCalculationResult {
     private final BigDecimal baselineError;
     private final BigDecimal qBase;
     private final BigDecimal eIdx;
+    private final BigDecimal currentEquipmentIdx;
+    private final String currentEquipmentGrade;
     private final BigDecimal bonusPoint;
     private final BigDecimal provisionalSQuant;
     private final BigDecimal environmentCorrection;

@@ -1,5 +1,7 @@
 package com.ohgiraffers.team3backendbatch.domain.quantitative.scoring;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,7 +29,8 @@ public class QuantitativeScoreCalculator {
     private static final BigDecimal DEFAULT_PARTICLE_WEIGHT = BigDecimal.valueOf(0.30);
     private static final BigDecimal DEFAULT_LOT_THRESHOLD = BigDecimal.valueOf(0.60);
 
-    private static final BigDecimal AGE_DECAY_LAMBDA = BigDecimal.valueOf(1.00);
+    private static final BigDecimal AGE_DECAY_LAMBDA = BigDecimal.valueOf(2.00);
+    private static final BigDecimal MIN_ETA_AGE = BigDecimal.valueOf(0.30);
     private static final BigDecimal MAINT_DECAY_LAMBDA = BigDecimal.valueOf(1.20);
     private static final BigDecimal AGE_FACTOR = BigDecimal.valueOf(0.12);
     private static final BigDecimal MAINT_FACTOR = BigDecimal.valueOf(0.08);
@@ -38,6 +41,73 @@ public class QuantitativeScoreCalculator {
     private static final BigDecimal SHIELDING_RELIEF = BigDecimal.valueOf(0.30);
     private static final BigDecimal CHALLENGE_BONUS_SCALE = BigDecimal.valueOf(50);
     private static final BigDecimal CHALLENGE_BONUS_CAP = BigDecimal.valueOf(20);
+    private static final BigDecimal GRADE_BOUNDARY_A = BigDecimal.valueOf(0.33);
+    private static final BigDecimal GRADE_BOUNDARY_B = BigDecimal.valueOf(0.66);
+
+    private final ObjectMapper objectMapper;
+    private final QuantitativeScoringPolicy defaultPolicy;
+
+    public QuantitativeScoreCalculator(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+        this.defaultPolicy = QuantitativeScoringPolicy.builder()
+            .uphWeight(UPH_WEIGHT)
+            .yieldWeight(YIELD_WEIGHT)
+            .leadTimeWeight(LEAD_TIME_WEIGHT)
+            .defaultTempWeight(DEFAULT_TEMP_WEIGHT)
+            .defaultHumidityWeight(DEFAULT_HUMIDITY_WEIGHT)
+            .defaultParticleWeight(DEFAULT_PARTICLE_WEIGHT)
+            .defaultLotThreshold(DEFAULT_LOT_THRESHOLD)
+            .ageDecayLambda(AGE_DECAY_LAMBDA)
+            .minEtaAge(MIN_ETA_AGE)
+            .maintDecayLambda(MAINT_DECAY_LAMBDA)
+            .ageFactor(AGE_FACTOR)
+            .maintFactor(MAINT_FACTOR)
+            .envFactor(ENV_FACTOR)
+            .materialFactor(MATERIAL_FACTOR)
+            .eIdxMax(EIDX_MAX)
+            .baselineAgeFactor(BASELINE_AGE_FACTOR)
+            .shieldingRelief(SHIELDING_RELIEF)
+            .challengeBonusScale(CHALLENGE_BONUS_SCALE)
+            .challengeBonusCap(CHALLENGE_BONUS_CAP)
+            .gradeBoundaryA(GRADE_BOUNDARY_A)
+            .gradeBoundaryB(GRADE_BOUNDARY_B)
+            .build();
+    }
+
+    public QuantitativeScoringPolicy resolvePolicy(String policyConfig) {
+        if (policyConfig == null || policyConfig.isBlank()) {
+            return defaultPolicy;
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(policyConfig);
+            return QuantitativeScoringPolicy.builder()
+                .uphWeight(number(root, defaultPolicy.getUphWeight(), "score.uphWeight", "uphWeight"))
+                .yieldWeight(number(root, defaultPolicy.getYieldWeight(), "score.yieldWeight", "yieldWeight"))
+                .leadTimeWeight(number(root, defaultPolicy.getLeadTimeWeight(), "score.leadTimeWeight", "leadTimeWeight"))
+                .defaultTempWeight(number(root, defaultPolicy.getDefaultTempWeight(), "environment.tempWeight", "defaultTempWeight"))
+                .defaultHumidityWeight(number(root, defaultPolicy.getDefaultHumidityWeight(), "environment.humidityWeight", "defaultHumidityWeight"))
+                .defaultParticleWeight(number(root, defaultPolicy.getDefaultParticleWeight(), "environment.particleWeight", "defaultParticleWeight"))
+                .defaultLotThreshold(number(root, defaultPolicy.getDefaultLotThreshold(), "material.lotDefectThreshold", "defaultLotThreshold"))
+                .ageDecayLambda(number(root, defaultPolicy.getAgeDecayLambda(), "equipment.ageDecayLambda", "ageDecayLambda"))
+                .minEtaAge(number(root, defaultPolicy.getMinEtaAge(), "equipment.minEtaAge", "minEtaAge"))
+                .maintDecayLambda(number(root, defaultPolicy.getMaintDecayLambda(), "equipment.maintDecayLambda", "maintDecayLambda"))
+                .ageFactor(number(root, defaultPolicy.getAgeFactor(), "equipment.ageFactor", "ageFactor"))
+                .maintFactor(number(root, defaultPolicy.getMaintFactor(), "equipment.maintFactor", "maintFactor"))
+                .envFactor(number(root, defaultPolicy.getEnvFactor(), "equipment.envFactor", "envFactor"))
+                .materialFactor(number(root, defaultPolicy.getMaterialFactor(), "equipment.materialFactor", "materialFactor"))
+                .eIdxMax(number(root, defaultPolicy.getEIdxMax(), "equipment.eIdxMax", "eIdxMax"))
+                .baselineAgeFactor(number(root, defaultPolicy.getBaselineAgeFactor(), "equipment.baselineAgeFactor", "baselineAgeFactor"))
+                .shieldingRelief(number(root, defaultPolicy.getShieldingRelief(), "material.shieldingRelief", "shieldingRelief"))
+                .challengeBonusScale(number(root, defaultPolicy.getChallengeBonusScale(), "challenge.bonusScale", "challengeBonusScale"))
+                .challengeBonusCap(number(root, defaultPolicy.getChallengeBonusCap(), "challenge.bonusCap", "challengeBonusCap"))
+                .gradeBoundaryA(number(root, defaultPolicy.getGradeBoundaryA(), "equipment.gradeBoundaryA", "gradeBoundaryA"))
+                .gradeBoundaryB(number(root, defaultPolicy.getGradeBoundaryB(), "equipment.gradeBoundaryB", "gradeBoundaryB"))
+                .build();
+        } catch (Exception ignored) {
+            return defaultPolicy;
+        }
+    }
 
     public BigDecimal resolveActualError(BigDecimal actualError, BigDecimal totalDefectQty, BigDecimal totalInputQty) {
         if (isPositive(actualError)) {
@@ -95,15 +165,45 @@ public class QuantitativeScoreCalculator {
         return clampRatio(normalized);
     }
 
+    public Integer calculateEquipmentAgeMonths(
+        LocalDate equipmentInstallDate,
+        LocalDate evaluationPeriodEndDate
+    ) {
+        if (equipmentInstallDate == null || evaluationPeriodEndDate == null) {
+            return null;
+        }
+
+        long ageMonths = Math.max(0, ChronoUnit.MONTHS.between(
+            YearMonth.from(equipmentInstallDate),
+            YearMonth.from(evaluationPeriodEndDate)
+        ));
+        return Math.toIntExact(Math.min(ageMonths, Integer.MAX_VALUE));
+    }
+
     public BigDecimal calculateEtaAge(BigDecimal equipmentWearCoefficient, BigDecimal nAge) {
+        return calculateEtaAge(equipmentWearCoefficient, nAge, defaultPolicy);
+    }
+
+    public BigDecimal calculateEtaAge(
+        BigDecimal equipmentWearCoefficient,
+        BigDecimal nAge,
+        QuantitativeScoringPolicy policy
+    ) {
         if (equipmentWearCoefficient == null || nAge == null) {
             return scale(ONE);
         }
-        double exponent = -AGE_DECAY_LAMBDA.doubleValue()
-            * safeRatio(equipmentWearCoefficient).doubleValue()
-            * safeRatio(nAge).doubleValue();
-        BigDecimal etaAge = BigDecimal.valueOf(Math.exp(exponent));
-        return clampRatio(etaAge);
+
+        double wearCoefficient = Math.max(BigDecimal.ZERO.doubleValue(), equipmentWearCoefficient.doubleValue());
+        if (wearCoefficient <= 0) {
+            return scale(ONE);
+        }
+
+        double normalizedAge = safeRatio(nAge).max(BigDecimal.ZERO).min(ONE).doubleValue();
+        double decayBase = positiveOrDefault(policy.getAgeDecayLambda(), AGE_DECAY_LAMBDA).doubleValue() * wearCoefficient;
+        double degradation = (Math.exp(decayBase * normalizedAge) - 1) / (Math.exp(decayBase) - 1);
+        BigDecimal minEtaAge = clampRatio(positiveOrDefault(policy.getMinEtaAge(), MIN_ETA_AGE));
+        double etaAge = minEtaAge.doubleValue() + (ONE.subtract(minEtaAge).doubleValue() * (1 - degradation));
+        return clampRatio(BigDecimal.valueOf(etaAge));
     }
 
     public BigDecimal calculateNMaint(BigDecimal maintenanceWeightedScoreSum, BigDecimal maintenanceWeightSum) {
@@ -117,11 +217,16 @@ public class QuantitativeScoreCalculator {
     }
 
     public BigDecimal calculateEtaMaint(BigDecimal maintenanceScoreNorm) {
+        return calculateEtaMaint(maintenanceScoreNorm, defaultPolicy);
+    }
+
+    public BigDecimal calculateEtaMaint(BigDecimal maintenanceScoreNorm, QuantitativeScoringPolicy policy) {
         if (maintenanceScoreNorm == null) {
             return scale(ONE);
         }
         BigDecimal normalized = clampRatio(maintenanceScoreNorm);
-        double exponent = -MAINT_DECAY_LAMBDA.doubleValue() * ONE.subtract(normalized).doubleValue();
+        double exponent = -positiveOrDefault(policy.getMaintDecayLambda(), MAINT_DECAY_LAMBDA).doubleValue()
+            * ONE.subtract(normalized).doubleValue();
         BigDecimal etaMaint = BigDecimal.valueOf(Math.exp(exponent));
         return clampRatio(etaMaint);
     }
@@ -143,9 +248,43 @@ public class QuantitativeScoreCalculator {
         BigDecimal vHumidity = calculateRangeDeviation(environmentHumidity, environmentHumidityMin, environmentHumidityMax);
         BigDecimal vParticle = calculateParticleDeviation(environmentParticleCount, environmentParticleLimit);
 
-        BigDecimal tempWeight = positiveOrDefault(environmentTempWeight, DEFAULT_TEMP_WEIGHT);
-        BigDecimal humidityWeight = positiveOrDefault(environmentHumidityWeight, DEFAULT_HUMIDITY_WEIGHT);
-        BigDecimal particleWeight = positiveOrDefault(environmentParticleWeight, DEFAULT_PARTICLE_WEIGHT);
+        return calculateNEnv(
+            environmentTemperature,
+            environmentTempMin,
+            environmentTempMax,
+            environmentHumidity,
+            environmentHumidityMin,
+            environmentHumidityMax,
+            environmentParticleCount,
+            environmentParticleLimit,
+            environmentTempWeight,
+            environmentHumidityWeight,
+            environmentParticleWeight,
+            defaultPolicy
+        );
+    }
+
+    public BigDecimal calculateNEnv(
+        BigDecimal environmentTemperature,
+        BigDecimal environmentTempMin,
+        BigDecimal environmentTempMax,
+        BigDecimal environmentHumidity,
+        BigDecimal environmentHumidityMin,
+        BigDecimal environmentHumidityMax,
+        BigDecimal environmentParticleCount,
+        BigDecimal environmentParticleLimit,
+        BigDecimal environmentTempWeight,
+        BigDecimal environmentHumidityWeight,
+        BigDecimal environmentParticleWeight,
+        QuantitativeScoringPolicy policy
+    ) {
+        BigDecimal vTemp = calculateRangeDeviation(environmentTemperature, environmentTempMin, environmentTempMax);
+        BigDecimal vHumidity = calculateRangeDeviation(environmentHumidity, environmentHumidityMin, environmentHumidityMax);
+        BigDecimal vParticle = calculateParticleDeviation(environmentParticleCount, environmentParticleLimit);
+
+        BigDecimal tempWeight = positiveOrDefault(environmentTempWeight, positiveOrDefault(policy.getDefaultTempWeight(), DEFAULT_TEMP_WEIGHT));
+        BigDecimal humidityWeight = positiveOrDefault(environmentHumidityWeight, positiveOrDefault(policy.getDefaultHumidityWeight(), DEFAULT_HUMIDITY_WEIGHT));
+        BigDecimal particleWeight = positiveOrDefault(environmentParticleWeight, positiveOrDefault(policy.getDefaultParticleWeight(), DEFAULT_PARTICLE_WEIGHT));
         BigDecimal weightSum = tempWeight.add(humidityWeight).add(particleWeight);
 
         if (!isPositive(weightSum)) {
@@ -165,10 +304,19 @@ public class QuantitativeScoreCalculator {
         Integer totalWorkersSameLot,
         BigDecimal lotDefectThreshold
     ) {
+        return calculateMaterialShielding(defectiveWorkersSameLot, totalWorkersSameLot, lotDefectThreshold, defaultPolicy);
+    }
+
+    public BigDecimal calculateMaterialShielding(
+        Integer defectiveWorkersSameLot,
+        Integer totalWorkersSameLot,
+        BigDecimal lotDefectThreshold,
+        QuantitativeScoringPolicy policy
+    ) {
         if (defectiveWorkersSameLot == null || totalWorkersSameLot == null || totalWorkersSameLot <= 0) {
             return ZERO;
         }
-        BigDecimal threshold = positiveOrDefault(lotDefectThreshold, DEFAULT_LOT_THRESHOLD);
+        BigDecimal threshold = positiveOrDefault(lotDefectThreshold, positiveOrDefault(policy.getDefaultLotThreshold(), DEFAULT_LOT_THRESHOLD));
         BigDecimal spikeRatio = BigDecimal.valueOf(defectiveWorkersSameLot)
             .divide(BigDecimal.valueOf(Math.max(totalWorkersSameLot, 1)), 4, RoundingMode.HALF_UP);
         return spikeRatio.compareTo(threshold) >= 0 ? scale(ONE) : ZERO;
@@ -182,17 +330,64 @@ public class QuantitativeScoreCalculator {
         BigDecimal nEnv,
         BigDecimal materialShielding
     ) {
+        return calculateEIdx(equipmentGrade, nAge, etaAge, etaMaint, nEnv, materialShielding, defaultPolicy);
+    }
+
+    public BigDecimal calculateEIdx(
+        String equipmentGrade,
+        BigDecimal nAge,
+        BigDecimal etaAge,
+        BigDecimal etaMaint,
+        BigDecimal nEnv,
+        BigDecimal materialShielding,
+        QuantitativeScoringPolicy policy
+    ) {
         if (isProtectedGrade(equipmentGrade) || safeRatio(nAge).compareTo(BigDecimal.ZERO) <= 0) {
             return scale(ONE);
         }
 
         BigDecimal eIdx = ONE
-            .add(AGE_FACTOR.multiply(ONE.subtract(safeRatio(etaAge))))
-            .add(MAINT_FACTOR.multiply(ONE.subtract(safeRatio(etaMaint))))
-            .add(ENV_FACTOR.multiply(safeRatio(nEnv)))
-            .add(MATERIAL_FACTOR.multiply(safeRatio(materialShielding)));
+            .add(positiveOrDefault(policy.getAgeFactor(), AGE_FACTOR).multiply(ONE.subtract(safeRatio(etaAge))))
+            .add(positiveOrDefault(policy.getMaintFactor(), MAINT_FACTOR).multiply(ONE.subtract(safeRatio(etaMaint))))
+            .add(positiveOrDefault(policy.getEnvFactor(), ENV_FACTOR).multiply(safeRatio(nEnv)))
+            .add(positiveOrDefault(policy.getMaterialFactor(), MATERIAL_FACTOR).multiply(safeRatio(materialShielding)));
 
-        return scale(eIdx.max(ONE).min(EIDX_MAX));
+        return scale(eIdx.max(ONE).min(positiveOrDefault(policy.getEIdxMax(), EIDX_MAX)));
+    }
+
+    public String resolveCurrentEquipmentGrade(String initialEquipmentGrade, BigDecimal nAge) {
+        return resolveCurrentEquipmentGrade(initialEquipmentGrade, nAge, defaultPolicy);
+    }
+
+    public String resolveCurrentEquipmentGrade(
+        String initialEquipmentGrade,
+        BigDecimal nAge,
+        QuantitativeScoringPolicy policy
+    ) {
+        int initialRank = resolveEquipmentGradeRank(initialEquipmentGrade);
+        int ageRank = resolveAgeDerivedEquipmentGradeRank(nAge, policy);
+        int currentRank = Math.max(initialRank, ageRank);
+
+        return switch (currentRank) {
+            case 1 -> "S";
+            case 2 -> "A";
+            case 3 -> "B";
+            default -> "C";
+        };
+    }
+
+    public BigDecimal calculateEquipmentGradeIdx(String equipmentGrade) {
+        if (equipmentGrade == null || equipmentGrade.isBlank()) {
+            return null;
+        }
+
+        return switch (equipmentGrade.trim().toUpperCase()) {
+            case "S" -> scale(ONE);
+            case "A" -> scale(BigDecimal.valueOf(0.90));
+            case "B" -> scale(BigDecimal.valueOf(0.80));
+            case "C" -> scale(BigDecimal.valueOf(0.70));
+            default -> null;
+        };
     }
 
     public BigDecimal calculateDifficultyAdjustment(BigDecimal difficultyScore) {
@@ -208,13 +403,24 @@ public class QuantitativeScoreCalculator {
     }
 
     public BigDecimal calculateBaselineError(BigDecimal baselineError, BigDecimal errorReferenceRate, BigDecimal nAge) {
+        return calculateBaselineError(baselineError, errorReferenceRate, nAge, defaultPolicy);
+    }
+
+    public BigDecimal calculateBaselineError(
+        BigDecimal baselineError,
+        BigDecimal errorReferenceRate,
+        BigDecimal nAge,
+        QuantitativeScoringPolicy policy
+    ) {
         if (isPositive(baselineError)) {
             return scale(baselineError);
         }
         if (!isPositive(errorReferenceRate)) {
             return ZERO;
         }
-        BigDecimal calculated = errorReferenceRate.multiply(ONE.add(BASELINE_AGE_FACTOR.multiply(safeRatio(nAge))));
+        BigDecimal calculated = errorReferenceRate.multiply(
+            ONE.add(positiveOrDefault(policy.getBaselineAgeFactor(), BASELINE_AGE_FACTOR).multiply(safeRatio(nAge)))
+        );
         return scale(calculated);
     }
 
@@ -226,21 +432,49 @@ public class QuantitativeScoreCalculator {
     }
 
     public BigDecimal calculateQBase(BigDecimal uphScore, BigDecimal yieldScore, BigDecimal leadTimeScore) {
-        BigDecimal qBase = safe(uphScore).multiply(UPH_WEIGHT)
-            .add(safe(yieldScore).multiply(YIELD_WEIGHT))
-            .add(safe(leadTimeScore).multiply(LEAD_TIME_WEIGHT));
+        return calculateQBase(uphScore, yieldScore, leadTimeScore, defaultPolicy);
+    }
+
+    public BigDecimal calculateQBase(
+        BigDecimal uphScore,
+        BigDecimal yieldScore,
+        BigDecimal leadTimeScore,
+        QuantitativeScoringPolicy policy
+    ) {
+        BigDecimal qBase = safe(uphScore).multiply(positiveOrDefault(policy.getUphWeight(), UPH_WEIGHT))
+            .add(safe(yieldScore).multiply(positiveOrDefault(policy.getYieldWeight(), YIELD_WEIGHT)))
+            .add(safe(leadTimeScore).multiply(positiveOrDefault(policy.getLeadTimeWeight(), LEAD_TIME_WEIGHT)));
         return clampPercentage(qBase);
     }
 
     public BigDecimal calculateEffectiveActualError(BigDecimal actualError, BigDecimal materialShielding) {
+        return calculateEffectiveActualError(actualError, materialShielding, defaultPolicy);
+    }
+
+    public BigDecimal calculateEffectiveActualError(
+        BigDecimal actualError,
+        BigDecimal materialShielding,
+        QuantitativeScoringPolicy policy
+    ) {
         if (!isPositive(actualError)) {
             return ZERO;
         }
-        BigDecimal effectiveError = actualError.multiply(ONE.subtract(SHIELDING_RELIEF.multiply(safeRatio(materialShielding))));
+        BigDecimal effectiveError = actualError.multiply(
+            ONE.subtract(positiveOrDefault(policy.getShieldingRelief(), SHIELDING_RELIEF).multiply(safeRatio(materialShielding)))
+        );
         return scale(effectiveError.max(BigDecimal.ZERO));
     }
 
     public BigDecimal calculateBonusPoint(BigDecimal difficultyScore, String difficultyGrade, String currentSkillTier) {
+        return calculateBonusPoint(difficultyScore, difficultyGrade, currentSkillTier, defaultPolicy);
+    }
+
+    public BigDecimal calculateBonusPoint(
+        BigDecimal difficultyScore,
+        String difficultyGrade,
+        String currentSkillTier,
+        QuantitativeScoringPolicy policy
+    ) {
         BigDecimal difficultyCapability = resolveDifficultyCapability(difficultyScore, difficultyGrade);
         BigDecimal workerCapability = resolveWorkerCapability(currentSkillTier);
 
@@ -253,7 +487,9 @@ public class QuantitativeScoreCalculator {
             return ZERO;
         }
 
-        return scale(capabilityGap.multiply(CHALLENGE_BONUS_SCALE).min(CHALLENGE_BONUS_CAP));
+        return scale(capabilityGap
+            .multiply(positiveOrDefault(policy.getChallengeBonusScale(), CHALLENGE_BONUS_SCALE))
+            .min(positiveOrDefault(policy.getChallengeBonusCap(), CHALLENGE_BONUS_CAP)));
     }
 
     public BigDecimal calculateProvisionalSQuantFromErrorRate(
@@ -390,6 +626,37 @@ public class QuantitativeScoreCalculator {
         return "S".equalsIgnoreCase(equipmentGrade) || "A".equalsIgnoreCase(equipmentGrade);
     }
 
+    private int resolveEquipmentGradeRank(String equipmentGrade) {
+        if (equipmentGrade == null || equipmentGrade.isBlank()) {
+            return 4;
+        }
+
+        return switch (equipmentGrade.trim().toUpperCase()) {
+            case "S" -> 1;
+            case "A" -> 2;
+            case "B" -> 3;
+            default -> 4;
+        };
+    }
+
+    private int resolveAgeDerivedEquipmentGradeRank(BigDecimal nAge) {
+        return resolveAgeDerivedEquipmentGradeRank(nAge, defaultPolicy);
+    }
+
+    private int resolveAgeDerivedEquipmentGradeRank(BigDecimal nAge, QuantitativeScoringPolicy policy) {
+        BigDecimal normalizedAge = safeRatio(nAge);
+        if (normalizedAge.compareTo(BigDecimal.ZERO) <= 0) {
+            return 1;
+        }
+        if (normalizedAge.compareTo(positiveOrDefault(policy.getGradeBoundaryA(), GRADE_BOUNDARY_A)) <= 0) {
+            return 2;
+        }
+        if (normalizedAge.compareTo(positiveOrDefault(policy.getGradeBoundaryB(), GRADE_BOUNDARY_B)) <= 0) {
+            return 3;
+        }
+        return 4;
+    }
+
     private BigDecimal resolveDifficultyLevel(BigDecimal difficultyScore, String difficultyGrade) {
         if (difficultyGrade != null && !difficultyGrade.isBlank()) {
             return switch (difficultyGrade.trim().toUpperCase()) {
@@ -481,5 +748,36 @@ public class QuantitativeScoreCalculator {
 
     private BigDecimal scale(BigDecimal value) {
         return safe(value).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal number(JsonNode root, BigDecimal defaultValue, String... paths) {
+        for (String path : paths) {
+            JsonNode node = find(root, path);
+            if (node == null || node.isMissingNode() || node.isNull()) {
+                continue;
+            }
+            if (node.isNumber()) {
+                return node.decimalValue();
+            }
+            if (node.isTextual() && !node.asText().isBlank()) {
+                try {
+                    return new BigDecimal(node.asText().trim());
+                } catch (NumberFormatException ignored) {
+                    return defaultValue;
+                }
+            }
+        }
+        return defaultValue;
+    }
+
+    private JsonNode find(JsonNode root, String dottedPath) {
+        JsonNode current = root;
+        for (String segment : dottedPath.split("\\.")) {
+            if (current == null) {
+                return null;
+            }
+            current = current.get(segment);
+        }
+        return current;
     }
 }

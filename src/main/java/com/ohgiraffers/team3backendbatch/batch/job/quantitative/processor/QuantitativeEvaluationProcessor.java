@@ -3,6 +3,7 @@ package com.ohgiraffers.team3backendbatch.batch.job.quantitative.processor;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeCalculationResult;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.domain.quantitative.scoring.QuantitativeScoreCalculator;
+import com.ohgiraffers.team3backendbatch.domain.quantitative.scoring.QuantitativeScoringPolicy;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.item.ItemProcessor;
@@ -17,6 +18,7 @@ public class QuantitativeEvaluationProcessor
 
     @Override
     public QuantitativeEvaluationAggregate process(QuantitativeEvaluationAggregate item) {
+        QuantitativeScoringPolicy policy = quantitativeScoreCalculator.resolvePolicy(item.getPolicyConfig());
         BigDecimal resolvedActualError = quantitativeScoreCalculator.resolveActualError(
             item.getActualError(),
             item.getTotalDefectQty(),
@@ -39,12 +41,16 @@ public class QuantitativeEvaluationProcessor
             item.getEquipmentWarrantyMonths(),
             item.getEquipmentDesignLifeMonths()
         );
-        BigDecimal etaAge = quantitativeScoreCalculator.calculateEtaAge(item.getEquipmentWearCoefficient(), nAge);
+        Integer equipmentAgeMonths = quantitativeScoreCalculator.calculateEquipmentAgeMonths(
+            item.getEquipmentInstallDate(),
+            item.getEvaluationPeriodEndDate()
+        );
+        BigDecimal etaAge = quantitativeScoreCalculator.calculateEtaAge(item.getEquipmentWearCoefficient(), nAge, policy);
         BigDecimal nMaint = quantitativeScoreCalculator.calculateNMaint(
             item.getMaintenanceWeightedScoreSum(),
             item.getMaintenanceWeightSum()
         );
-        BigDecimal etaMaint = quantitativeScoreCalculator.calculateEtaMaint(nMaint);
+        BigDecimal etaMaint = quantitativeScoreCalculator.calculateEtaMaint(nMaint, policy);
         BigDecimal nEnv = quantitativeScoreCalculator.calculateNEnv(
             item.getEnvironmentTemperature(),
             item.getEnvironmentTempMin(),
@@ -56,12 +62,14 @@ public class QuantitativeEvaluationProcessor
             item.getEnvironmentParticleLimit(),
             item.getEnvironmentTempWeight(),
             item.getEnvironmentHumidityWeight(),
-            item.getEnvironmentParticleWeight()
+            item.getEnvironmentParticleWeight(),
+            policy
         );
         BigDecimal materialShielding = quantitativeScoreCalculator.calculateMaterialShielding(
             item.getDefectiveWorkersSameLot(),
             item.getTotalWorkersSameLot(),
-            item.getLotDefectThreshold()
+            item.getLotDefectThreshold(),
+            policy
         );
         BigDecimal difficultyAdjustment = quantitativeScoreCalculator.calculateDifficultyAdjustment(
             item.getDifficultyScore(),
@@ -70,29 +78,39 @@ public class QuantitativeEvaluationProcessor
         BigDecimal resolvedBaselineError = quantitativeScoreCalculator.calculateBaselineError(
             item.getBaselineError(),
             item.getErrorReferenceRate(),
-            nAge
+            nAge,
+            policy
         );
-        BigDecimal qBase = quantitativeScoreCalculator.calculateQBase(uphScore, yieldScore, leadTimeScore);
-        BigDecimal eIdx = quantitativeScoreCalculator.calculateEIdx(
+        BigDecimal qBase = quantitativeScoreCalculator.calculateQBase(uphScore, yieldScore, leadTimeScore, policy);
+        String currentEquipmentGrade = quantitativeScoreCalculator.resolveCurrentEquipmentGrade(
             item.getEquipmentGrade(),
+            nAge,
+            policy
+        );
+        BigDecimal eIdx = quantitativeScoreCalculator.calculateEIdx(
+            currentEquipmentGrade,
             nAge,
             etaAge,
             etaMaint,
             nEnv,
-            materialShielding
+            materialShielding,
+            policy
         );
+        BigDecimal currentEquipmentIdx = eIdx;
         BigDecimal adjustedBaselineError = quantitativeScoreCalculator.calculateAdjustedBaselineError(
             resolvedBaselineError,
             eIdx
         );
         BigDecimal effectiveActualError = quantitativeScoreCalculator.calculateEffectiveActualError(
             resolvedActualError,
-            materialShielding
+            materialShielding,
+            policy
         );
         BigDecimal bonusPoint = quantitativeScoreCalculator.calculateBonusPoint(
             item.getDifficultyScore(),
             item.getDifficultyGrade(),
-            item.getCurrentSkillTier()
+            item.getCurrentSkillTier(),
+            policy
         );
         BigDecimal provisionalSQuant = quantitativeScoreCalculator.calculateProvisionalSQuantFromErrorRate(
             effectiveActualError,
@@ -132,6 +150,7 @@ public class QuantitativeEvaluationProcessor
             .actualError(resolvedActualError)
             .nAge(nAge)
             .etaAge(etaAge)
+            .equipmentAgeMonths(equipmentAgeMonths)
             .nMaint(nMaint)
             .etaMaint(etaMaint)
             .nEnv(nEnv)
@@ -143,6 +162,8 @@ public class QuantitativeEvaluationProcessor
             .baselineError(resolvedBaselineError)
             .qBase(qBase)
             .eIdx(eIdx)
+            .currentEquipmentIdx(currentEquipmentIdx)
+            .currentEquipmentGrade(currentEquipmentGrade)
             .bonusPoint(bonusPoint)
             .provisionalSQuant(provisionalSQuant)
             .environmentCorrection(environmentCorrection)
