@@ -322,6 +322,28 @@ public class QuantitativeScoreCalculator {
         return spikeRatio.compareTo(threshold) >= 0 ? scale(ONE) : ZERO;
     }
 
+    public BigDecimal resolveMaterialShielding(
+        Integer defectiveWorkersSameLot,
+        Integer totalWorkersSameLot,
+        BigDecimal lotDefectThreshold,
+        BatchPeriodType periodType
+    ) {
+        return resolveMaterialShielding(defectiveWorkersSameLot, totalWorkersSameLot, lotDefectThreshold, periodType, defaultPolicy);
+    }
+
+    public BigDecimal resolveMaterialShielding(
+        Integer defectiveWorkersSameLot,
+        Integer totalWorkersSameLot,
+        BigDecimal lotDefectThreshold,
+        BatchPeriodType periodType,
+        QuantitativeScoringPolicy policy
+    ) {
+        if (periodType != BatchPeriodType.MONTH) {
+            return ZERO;
+        }
+        return calculateMaterialShielding(defectiveWorkersSameLot, totalWorkersSameLot, lotDefectThreshold, policy);
+    }
+
     public BigDecimal calculateEIdx(
         String equipmentGrade,
         BigDecimal nAge,
@@ -571,7 +593,7 @@ public class QuantitativeScoreCalculator {
     }
 
     public String resolveStatus(BatchPeriodType periodType) {
-        return periodType == BatchPeriodType.MONTH ? "SETTLED" : "PREVIEW";
+        return periodType == BatchPeriodType.MONTH ? "CONFIRMED" : "TEMPORARY";
     }
 
     private BigDecimal calculateRatioScore(BigDecimal actual, BigDecimal target) {

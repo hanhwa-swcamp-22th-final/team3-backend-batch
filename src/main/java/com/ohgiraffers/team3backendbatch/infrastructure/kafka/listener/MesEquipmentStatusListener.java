@@ -25,6 +25,11 @@ public class MesEquipmentStatusListener {
         containerFactory = "mesEquipmentStatusKafkaListenerContainerFactory"
     )
     public void listen(MesEquipmentStatusEvent event) {
+        if (event == null) {
+            log.warn("Skipped malformed MES equipment status event.");
+            return;
+        }
+
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime occurredAt = event.getOccurredAt() == null ? now : event.getOccurredAt();
         MesEquipmentStatusProjectionId projectionId = new MesEquipmentStatusProjectionId(

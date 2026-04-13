@@ -6,8 +6,8 @@ import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.job.skillscore.model.IntegratedScoreAggregate;
 import com.ohgiraffers.team3backendbatch.domain.qualitative.model.MatchedKeywordDetail;
 import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeSkillKeywordClassifier;
-import com.ohgiraffers.team3backendbatch.infrastructure.client.KmsBatchSourceGateway;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.MatchedKeywordDetailEvent;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.kms.repository.KmsArticleProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.order.repository.OrderAssignmentProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.EvaluationCommentRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeScoreProjectionRepository;
@@ -50,7 +50,7 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
     private final QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository;
     private final EvaluationCommentRepository evaluationCommentRepository;
     private final OrderAssignmentProjectionRepository orderAssignmentProjectionRepository;
-    private final KmsBatchSourceGateway kmsBatchSourceGateway;
+    private final KmsArticleProjectionRepository kmsArticleProjectionRepository;
     private final QualitativeSkillKeywordClassifier qualitativeSkillKeywordClassifier;
     private final ObjectMapper objectMapper;
 
@@ -98,7 +98,7 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         );
         Map<Long, BigDecimal> qualitativeScores = loadQualitativeScores(evaluationPeriodId);
         Map<Long, Map<String, BigDecimal>> qualitativeSkillScores = buildQualitativeSkillScores(evaluationPeriodId, qualitativeScores);
-        Map<Long, Integer> kmsApprovedArticleCounts = kmsBatchSourceGateway.getApprovedArticleCounts(startDate, endDate);
+        Map<Long, Integer> kmsApprovedArticleCounts = loadKmsApprovedArticleCounts(startDate, endDate);
         Map<Long, Integer> challengeCounts = orderAssignmentProjectionRepository.findChallengeCountsByAssignedAtBetween(
                 startDate.atStartOfDay(),
                 endDate.plusDays(1).atStartOfDay()
@@ -170,6 +170,18 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
             QualitativeScoreProjectionRepository.MonthlyQualitativeScoreView::getEmployeeId,
             QualitativeScoreProjectionRepository.MonthlyQualitativeScoreView::getNormalizedScore
         ));
+    }
+
+    private Map<Long, Integer> loadKmsApprovedArticleCounts(LocalDate startDate, LocalDate endDate) {
+        return kmsArticleProjectionRepository.findApprovedArticleCountsByApprovedAtBetween(
+                startDate.atStartOfDay(),
+                endDate.plusDays(1).atStartOfDay()
+            )
+            .stream()
+            .collect(Collectors.toMap(
+                KmsArticleProjectionRepository.EmployeeApprovedArticleCountView::getEmployeeId,
+                view -> view.getApprovedArticleCount() == null ? 0 : view.getApprovedArticleCount().intValue()
+            ));
     }
 
     private Map<Long, Map<String, BigDecimal>> buildQualitativeSkillScores(

@@ -33,6 +33,11 @@ public class MesEnvironmentListener {
         containerFactory = "mesEnvironmentKafkaListenerContainerFactory"
     )
     public void listen(MesEnvironmentEvent event) {
+        if (event == null) {
+            log.warn("Skipped malformed MES environment event.");
+            return;
+        }
+
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime occurredAt = event.getOccurredAt() == null ? now : event.getOccurredAt();
         EnvironmentThreshold thresholds = resolveThresholds(event.getEquipmentId());

@@ -8,7 +8,9 @@ import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.MesQualityResu
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,7 +18,12 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 
 @Configuration
 @EnableKafka
@@ -37,6 +44,16 @@ public class MesKafkaConfig {
     }
 
     @Bean
+    public ProducerFactory<String, MesProductionResultEvent> mesProductionResultProducerFactory() {
+        return producerFactory();
+    }
+
+    @Bean
+    public KafkaTemplate<String, MesProductionResultEvent> mesProductionResultKafkaTemplate() {
+        return new KafkaTemplate<>(mesProductionResultProducerFactory());
+    }
+
+    @Bean
     public ConcurrentKafkaListenerContainerFactory<String, MesProductionResultEvent>
     mesProductionResultKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, MesProductionResultEvent> factory =
@@ -48,6 +65,16 @@ public class MesKafkaConfig {
     @Bean
     public ConsumerFactory<String, MesQualityResultEvent> mesQualityResultConsumerFactory() {
         return consumerFactory(MesQualityResultEvent.class);
+    }
+
+    @Bean
+    public ProducerFactory<String, MesQualityResultEvent> mesQualityResultProducerFactory() {
+        return producerFactory();
+    }
+
+    @Bean
+    public KafkaTemplate<String, MesQualityResultEvent> mesQualityResultKafkaTemplate() {
+        return new KafkaTemplate<>(mesQualityResultProducerFactory());
     }
 
     @Bean
@@ -65,6 +92,16 @@ public class MesKafkaConfig {
     }
 
     @Bean
+    public ProducerFactory<String, MesQualityMeasurementEvent> mesQualityMeasurementProducerFactory() {
+        return producerFactory();
+    }
+
+    @Bean
+    public KafkaTemplate<String, MesQualityMeasurementEvent> mesQualityMeasurementKafkaTemplate() {
+        return new KafkaTemplate<>(mesQualityMeasurementProducerFactory());
+    }
+
+    @Bean
     public ConcurrentKafkaListenerContainerFactory<String, MesQualityMeasurementEvent>
     mesQualityMeasurementKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, MesQualityMeasurementEvent> factory =
@@ -79,6 +116,16 @@ public class MesKafkaConfig {
     }
 
     @Bean
+    public ProducerFactory<String, MesEquipmentStatusEvent> mesEquipmentStatusProducerFactory() {
+        return producerFactory();
+    }
+
+    @Bean
+    public KafkaTemplate<String, MesEquipmentStatusEvent> mesEquipmentStatusKafkaTemplate() {
+        return new KafkaTemplate<>(mesEquipmentStatusProducerFactory());
+    }
+
+    @Bean
     public ConcurrentKafkaListenerContainerFactory<String, MesEquipmentStatusEvent>
     mesEquipmentStatusKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, MesEquipmentStatusEvent> factory =
@@ -90,6 +137,16 @@ public class MesKafkaConfig {
     @Bean
     public ConsumerFactory<String, MesEnvironmentEvent> mesEnvironmentConsumerFactory() {
         return consumerFactory(MesEnvironmentEvent.class);
+    }
+
+    @Bean
+    public ProducerFactory<String, MesEnvironmentEvent> mesEnvironmentProducerFactory() {
+        return producerFactory();
+    }
+
+    @Bean
+    public KafkaTemplate<String, MesEnvironmentEvent> mesEnvironmentKafkaTemplate() {
+        return new KafkaTemplate<>(mesEnvironmentProducerFactory());
     }
 
     @Bean
@@ -111,6 +168,19 @@ public class MesKafkaConfig {
         deserializer.ignoreTypeHeaders();
         deserializer.addTrustedPackages("com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto");
 
-        return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(), deserializer);
+        return new DefaultKafkaConsumerFactory<>(
+            config,
+            new StringDeserializer(),
+            new ErrorHandlingDeserializer<>(deserializer)
+        );
+    }
+
+    private <T> ProducerFactory<String, T> producerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        config.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+        return new DefaultKafkaProducerFactory<>(config);
     }
 }

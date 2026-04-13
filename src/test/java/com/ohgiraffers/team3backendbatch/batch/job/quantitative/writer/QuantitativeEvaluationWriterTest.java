@@ -37,7 +37,7 @@ class QuantitativeEvaluationWriterTest {
             .materialShielding(BigDecimal.ONE)
             .sQuant(BigDecimal.valueOf(87.2))
             .tScore(BigDecimal.valueOf(87.2))
-            .status("SETTLED")
+            .status("CONFIRMED")
             .build();
 
         QuantitativeEvaluationWriter writer = new QuantitativeEvaluationWriter(quantitativeEvaluationEventPublisher);
@@ -56,7 +56,7 @@ class QuantitativeEvaluationWriterTest {
         assertThat(event.getEquipmentResults().get(0).getMaterialShielding()).isEqualTo(1);
         assertThat(event.getEquipmentResults().get(0).getSQuant()).isEqualByComparingTo("87.2");
         assertThat(event.getEquipmentResults().get(0).getTScore()).isEqualByComparingTo("87.2");
-        assertThat(event.getEquipmentResults().get(0).getStatus()).isEqualTo("SETTLED");
+        assertThat(event.getEquipmentResults().get(0).getStatus()).isEqualTo("CONFIRMED");
     }
 
     @Test
@@ -74,7 +74,7 @@ class QuantitativeEvaluationWriterTest {
             .materialShielding(BigDecimal.ZERO)
             .sQuant(BigDecimal.valueOf(75.0))
             .tScore(null)
-            .status("PREVIEW")
+            .status("TEMPORARY")
             .build();
         QuantitativeEvaluationAggregate second = QuantitativeEvaluationAggregate.builder()
             .employeeId(10L)
@@ -89,7 +89,7 @@ class QuantitativeEvaluationWriterTest {
             .materialShielding(BigDecimal.ONE)
             .sQuant(BigDecimal.valueOf(92.5))
             .tScore(BigDecimal.valueOf(89.0))
-            .status("SETTLED")
+            .status("CONFIRMED")
             .build();
 
         QuantitativeEvaluationWriter writer = new QuantitativeEvaluationWriter(quantitativeEvaluationEventPublisher);
