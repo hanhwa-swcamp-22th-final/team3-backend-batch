@@ -49,6 +49,9 @@ public class EvaluationPeriodProjectionEntity {
     @Column(name = "algorithm_implementation_key")
     private String algorithmImplementationKey;
 
+    @Column(name = "policy_config")
+    private String policyConfig;
+
     @Column(name = "parameters")
     private String parameters;
 
@@ -81,6 +84,7 @@ public class EvaluationPeriodProjectionEntity {
         String status,
         String algorithmVersionNo,
         String algorithmImplementationKey,
+        String policyConfig,
         String parameters,
         String referenceValues,
         LocalDateTime occurredAt,
@@ -97,6 +101,7 @@ public class EvaluationPeriodProjectionEntity {
         entity.status = status;
         entity.algorithmVersionNo = algorithmVersionNo;
         entity.algorithmImplementationKey = algorithmImplementationKey;
+        entity.policyConfig = policyConfig;
         entity.parameters = parameters;
         entity.referenceValues = referenceValues;
         entity.occurredAt = occurredAt;
@@ -117,6 +122,7 @@ public class EvaluationPeriodProjectionEntity {
         String status,
         String algorithmVersionNo,
         String algorithmImplementationKey,
+        String policyConfig,
         String parameters,
         String referenceValues,
         LocalDateTime occurredAt,
@@ -131,6 +137,7 @@ public class EvaluationPeriodProjectionEntity {
         this.status = status;
         this.algorithmVersionNo = algorithmVersionNo;
         this.algorithmImplementationKey = algorithmImplementationKey;
+        this.policyConfig = policyConfig;
         this.parameters = parameters;
         this.referenceValues = referenceValues;
         this.occurredAt = occurredAt;

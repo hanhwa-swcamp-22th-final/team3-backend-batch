@@ -25,6 +25,7 @@ public class QuantitativeEvaluationAggregate {
     private final Long equipmentId;
     private final BatchPeriodType periodType;
     private final Long algorithmVersionId;
+    private final String policyConfig;
     private final LocalDate evaluationPeriodEndDate;
     private final BigDecimal totalInputQty;
     private final BigDecimal totalGoodQty;
@@ -75,6 +76,7 @@ public class QuantitativeEvaluationAggregate {
     private final BigDecimal actualError;
     private final BigDecimal nAge;
     private final BigDecimal etaAge;
+    private final Integer equipmentAgeMonths;
     private final BigDecimal nMaint;
     private final BigDecimal etaMaint;
     private final BigDecimal nEnv;
@@ -85,6 +87,8 @@ public class QuantitativeEvaluationAggregate {
     private final BigDecimal difficultyAdjustment;
     private final BigDecimal qBase;
     private final BigDecimal eIdx;
+    private final BigDecimal currentEquipmentIdx;
+    private final String currentEquipmentGrade;
     private final BigDecimal bonusPoint;
     private final BigDecimal provisionalSQuant;
     private final BigDecimal sQuant;
@@ -96,6 +100,7 @@ public class QuantitativeEvaluationAggregate {
             .actualError(result.getActualError())
             .nAge(result.getNAge())
             .etaAge(result.getEtaAge())
+            .equipmentAgeMonths(result.getEquipmentAgeMonths())
             .nMaint(result.getNMaint())
             .etaMaint(result.getEtaMaint())
             .nEnv(result.getNEnv())
@@ -107,6 +112,8 @@ public class QuantitativeEvaluationAggregate {
             .baselineError(result.getBaselineError())
             .qBase(result.getQBase())
             .eIdx(result.getEIdx())
+            .currentEquipmentIdx(result.getCurrentEquipmentIdx())
+            .currentEquipmentGrade(result.getCurrentEquipmentGrade())
             .bonusPoint(result.getBonusPoint())
             .provisionalSQuant(result.getProvisionalSQuant())
             .environmentCorrection(result.getEnvironmentCorrection())

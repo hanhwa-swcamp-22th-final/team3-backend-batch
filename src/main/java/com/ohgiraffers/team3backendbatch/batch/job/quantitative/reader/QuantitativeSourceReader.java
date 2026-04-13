@@ -173,6 +173,7 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             .equipmentId(row.getEquipmentId())
             .periodType(periodType)
             .algorithmVersionId(row.getAlgorithmVersionId())
+            .policyConfig(row.getPolicyConfig())
             .evaluationPeriodEndDate(row.getEvaluationPeriodEndDate())
             .totalInputQty(row.getTotalInputQty())
             .totalGoodQty(row.getTotalGoodQty())

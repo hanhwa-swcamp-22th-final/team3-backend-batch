@@ -121,7 +121,7 @@ class QuantitativeScoreCalculatorTest {
     }
 
     @Test
-    void shouldApplyExponentialDecayToAgeAndMaintenance() {
+    void shouldApplyBackLoadedExponentialDecayToAgeAndMaintenance() {
         BigDecimal nAge = calculator.calculateNAge(
             LocalDate.of(2021, 6, 1),
             LocalDate.of(2024, 6, 30),
@@ -147,11 +147,11 @@ class QuantitativeScoreCalculatorTest {
         BigDecimal eIdx = calculator.calculateEIdx("B", nAge, etaAge, etaMaint, nEnv, BigDecimal.ZERO);
 
         assertThat(nAge).isEqualByComparingTo("0.13");
-        assertThat(etaAge).isEqualByComparingTo("0.87");
+        assertThat(etaAge).isEqualByComparingTo("0.97");
         assertThat(nMaint).isEqualByComparingTo("0.82");
         assertThat(etaMaint).isEqualByComparingTo("0.81");
         assertThat(nEnv).isEqualByComparingTo("0.11");
-        assertThat(eIdx).isEqualByComparingTo("1.04");
+        assertThat(eIdx).isEqualByComparingTo("1.02");
     }
 
     @Test

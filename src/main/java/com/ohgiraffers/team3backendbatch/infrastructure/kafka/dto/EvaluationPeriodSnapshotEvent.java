@@ -23,6 +23,7 @@ public class EvaluationPeriodSnapshotEvent {
     private String status;
     private String algorithmVersionNo;
     private String algorithmImplementationKey;
+    private String policyConfig;
     private String parameters;
     private String referenceValues;
     private LocalDateTime occurredAt;

@@ -55,6 +55,7 @@ public class QuantitativeEvaluationJobConfig {
             .reader(quantitativeSourceReader)
             .processor(quantitativeEvaluationProcessor)
             .writer(quantitativeEvaluationWriter)
+            .listener(quantitativeEvaluationWriter)
             .build();
     }
 }
