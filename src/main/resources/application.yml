@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: team3-backend-batch
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
 
   profiles:
     include: db, secret
