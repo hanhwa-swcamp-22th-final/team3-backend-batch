@@ -5,9 +5,11 @@ import com.ohgiraffers.team3backendbatch.batch.job.skillscore.model.IntegratedSc
 import com.ohgiraffers.team3backendbatch.domain.scoring.MonthlySkillContributionCalculator;
 import com.ohgiraffers.team3backendbatch.domain.scoring.PerformancePointCalculator;
 import com.ohgiraffers.team3backendbatch.domain.scoring.TierAwareKpiScoreCalculator;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.MissionProgressEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointCalculatedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.SkillGrowthCalculatedEvent;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,7 @@ public class IntegratedScoreProcessor
     private static final String QUALITATIVE_POINT_TYPE = "QUALITATIVE";
     private static final String KNOWLEDGE_SHARING_POINT_TYPE = "KNOWLEDGE_SHARING";
     private static final String CHALLENGE_POINT_TYPE = "CHALLENGE";
+    private static final String AI_SCORE_MISSION_TYPE = "AI_SCORE";
 
     private final PerformancePointCalculator performancePointCalculator;
     private final MonthlySkillContributionCalculator monthlySkillContributionCalculator;
@@ -35,6 +38,7 @@ public class IntegratedScoreProcessor
         Integer quantitativePoint = null;
         Integer qualitativePoint = null;
         List<PerformancePointCalculatedEvent> events = new ArrayList<>();
+        List<MissionProgressEvent> missionProgressEvents = new ArrayList<>();
         List<SkillGrowthCalculatedEvent> skillGrowthEvents = new ArrayList<>();
         boolean officialSettlement = item.getPeriodType() == BatchPeriodType.MONTH;
 
@@ -56,6 +60,16 @@ public class IntegratedScoreProcessor
                     ? "Strategic-tier quantitative KPI settlement contribution"
                     : "Monthly quantitative settlement contribution"
             ));
+        }
+
+        BigDecimal capabilityScore = resolveCapabilityScore(quantitativeBaseScore, item.getQualitativeScore());
+        if (officialSettlement && capabilityScore != null) {
+            missionProgressEvents.add(MissionProgressEvent.builder()
+                .employeeId(item.getEmployeeId())
+                .missionType(AI_SCORE_MISSION_TYPE)
+                .progressValue(capabilityScore)
+                .absolute(true)
+                .build());
         }
 
         if (officialSettlement && item.getQualitativeScore() != null) {
@@ -102,7 +116,17 @@ public class IntegratedScoreProcessor
             }
         }
 
-        return item.withCalculatedResults(quantitativePoint, qualitativePoint, events, skillGrowthEvents);
+        return item.withCalculatedResults(quantitativePoint, qualitativePoint, missionProgressEvents, events, skillGrowthEvents);
+    }
+
+    private BigDecimal resolveCapabilityScore(BigDecimal quantitativeBaseScore, BigDecimal qualitativeScore) {
+        if (quantitativeBaseScore == null) {
+            return qualitativeScore;
+        }
+        if (qualitativeScore == null) {
+            return quantitativeBaseScore;
+        }
+        return quantitativeBaseScore.add(qualitativeScore).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
     }
 
     private PerformancePointCalculatedEvent buildEvent(

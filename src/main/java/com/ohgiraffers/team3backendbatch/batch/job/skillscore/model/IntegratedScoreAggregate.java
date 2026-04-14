@@ -1,6 +1,7 @@
 package com.ohgiraffers.team3backendbatch.batch.job.skillscore.model;
 
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.MissionProgressEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointCalculatedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.SkillGrowthCalculatedEvent;
 import java.math.BigDecimal;
@@ -33,18 +34,21 @@ public class IntegratedScoreAggregate {
     private final Integer challengeTaskCount;
     private final Integer quantitativePoint;
     private final Integer qualitativePoint;
+    private final List<MissionProgressEvent> missionProgressEvents;
     private final List<PerformancePointCalculatedEvent> performancePointEvents;
     private final List<SkillGrowthCalculatedEvent> skillGrowthEvents;
 
     public IntegratedScoreAggregate withCalculatedResults(
         Integer quantitativePoint,
         Integer qualitativePoint,
+        List<MissionProgressEvent> missionProgressEvents,
         List<PerformancePointCalculatedEvent> performancePointEvents,
         List<SkillGrowthCalculatedEvent> skillGrowthEvents
     ) {
         return this.toBuilder()
             .quantitativePoint(quantitativePoint)
             .qualitativePoint(qualitativePoint)
+            .missionProgressEvents(missionProgressEvents == null ? List.of() : List.copyOf(missionProgressEvents))
             .qualitativeSkillScores(qualitativeSkillScores == null ? Map.of() : Map.copyOf(qualitativeSkillScores))
             .performancePointEvents(performancePointEvents == null ? List.of() : List.copyOf(performancePointEvents))
             .skillGrowthEvents(skillGrowthEvents == null ? List.of() : List.copyOf(skillGrowthEvents))

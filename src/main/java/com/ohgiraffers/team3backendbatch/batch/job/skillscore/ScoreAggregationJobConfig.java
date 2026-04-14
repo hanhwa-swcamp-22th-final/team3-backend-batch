@@ -5,6 +5,7 @@ import com.ohgiraffers.team3backendbatch.batch.common.support.BatchJobNames;
 import com.ohgiraffers.team3backendbatch.batch.job.skillscore.model.IntegratedScoreAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.skillscore.processor.IntegratedScoreProcessor;
 import com.ohgiraffers.team3backendbatch.batch.job.skillscore.reader.IntegratedScoreReader;
+import com.ohgiraffers.team3backendbatch.batch.job.skillscore.writer.MissionProgressWriter;
 import com.ohgiraffers.team3backendbatch.batch.job.skillscore.writer.PerformancePointWriter;
 import com.ohgiraffers.team3backendbatch.batch.job.skillscore.writer.ScoreWriter;
 import com.ohgiraffers.team3backendbatch.batch.job.skillscore.writer.SkillWriter;
@@ -44,6 +45,7 @@ public class ScoreAggregationJobConfig {
     private final ScoreWriter scoreWriter;
     private final SkillWriter skillWriter;
     private final PerformancePointWriter performancePointWriter;
+    private final MissionProgressWriter missionProgressWriter;
 
     @Bean(name = BatchJobNames.SCORE_AGGREGATION_JOB)
     public Job scoreAggregationJob() {
@@ -66,7 +68,7 @@ public class ScoreAggregationJobConfig {
     @Bean
     public CompositeItemWriter<IntegratedScoreAggregate> integratedScoreCompositeWriter() {
         CompositeItemWriter<IntegratedScoreAggregate> writer = new CompositeItemWriter<>();
-        writer.setDelegates(List.of(scoreWriter, skillWriter, performancePointWriter));
+        writer.setDelegates(List.of(scoreWriter, skillWriter, performancePointWriter, missionProgressWriter));
         return writer;
     }
 }

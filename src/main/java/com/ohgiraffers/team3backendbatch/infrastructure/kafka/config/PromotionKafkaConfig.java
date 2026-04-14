@@ -2,6 +2,7 @@ package com.ohgiraffers.team3backendbatch.infrastructure.kafka.config;
 
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointCalculatedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointSnapshotEvent;
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.MissionProgressEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PromotionCandidateEvaluatedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PromotionHistorySnapshotEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.TierConfigSnapshotEvent;
@@ -52,6 +53,16 @@ public class PromotionKafkaConfig {
     @Bean
     public KafkaTemplate<String, PromotionCandidateEvaluatedEvent> promotionCandidateEvaluatedKafkaTemplate() {
         return new KafkaTemplate<>(promotionCandidateEvaluatedProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, MissionProgressEvent> missionProgressProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfig());
+    }
+
+    @Bean
+    public KafkaTemplate<String, MissionProgressEvent> missionProgressKafkaTemplate() {
+        return new KafkaTemplate<>(missionProgressProducerFactory());
     }
 
     @Bean

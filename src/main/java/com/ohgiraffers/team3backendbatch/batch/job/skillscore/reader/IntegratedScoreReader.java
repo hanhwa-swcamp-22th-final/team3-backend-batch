@@ -260,6 +260,7 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
             .qualitativeSkillScores(employeeQualitativeSkillScores)
             .kmsApprovedArticleCount(kmsApprovedArticleCount)
             .challengeTaskCount(challengeTaskCount)
+            .missionProgressEvents(List.of())
             .performancePointEvents(List.of())
             .build();
     }
