@@ -3,11 +3,13 @@ package com.ohgiraffers.team3backendbatch.batch.job.quantitative.reader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationSourceRow;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.processor.QuantitativeEvaluationProcessor;
 import com.ohgiraffers.team3backendbatch.domain.quantitative.scoring.QuantitativeScoreCalculator;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EvaluationPeriodProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.QuantitativeEvaluationQueryMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,8 +25,11 @@ class QuantitativeSourceReaderTest {
     @Mock
     private QuantitativeEvaluationQueryMapper quantitativeEvaluationQueryMapper;
 
+    @Mock
+    private EvaluationPeriodProjectionRepository evaluationPeriodProjectionRepository;
+
     private final QuantitativeEvaluationProcessor quantitativeEvaluationProcessor =
-        new QuantitativeEvaluationProcessor(new QuantitativeScoreCalculator());
+        new QuantitativeEvaluationProcessor(new QuantitativeScoreCalculator(new ObjectMapper()));
 
     @Test
     void read_shouldMapSourceRowsToAggregate() throws Exception {
@@ -51,6 +56,7 @@ class QuantitativeSourceReaderTest {
         QuantitativeSourceReader reader = new QuantitativeSourceReader(
             quantitativeEvaluationQueryMapper,
             quantitativeEvaluationProcessor,
+            evaluationPeriodProjectionRepository,
             202601L,
             10L,
             "false",
@@ -104,6 +110,7 @@ class QuantitativeSourceReaderTest {
         QuantitativeSourceReader reader = new QuantitativeSourceReader(
             quantitativeEvaluationQueryMapper,
             quantitativeEvaluationProcessor,
+            evaluationPeriodProjectionRepository,
             202601L,
             null,
             "false",
