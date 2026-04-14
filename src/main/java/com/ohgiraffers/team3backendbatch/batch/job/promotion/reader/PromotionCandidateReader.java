@@ -66,7 +66,7 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
         }
 
         Map<String, TierConfigProjectionEntity> tierConfigByTier = new HashMap<>();
-        for (TierConfigProjectionEntity projection : tierConfigProjectionRepository.findAll()) {
+        for (TierConfigProjectionEntity projection : tierConfigProjectionRepository.findAllByActiveTrueAndDeletedFalse()) {
             if (projection.getTierConfigTier() != null) {
                 tierConfigByTier.put(projection.getTierConfigTier().trim().toUpperCase(), projection);
             }

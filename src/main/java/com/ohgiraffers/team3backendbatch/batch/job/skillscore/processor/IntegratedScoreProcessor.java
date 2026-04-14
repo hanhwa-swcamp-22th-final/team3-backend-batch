@@ -8,6 +8,7 @@ import com.ohgiraffers.team3backendbatch.domain.scoring.TierAwareKpiScoreCalcula
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointCalculatedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.SkillGrowthCalculatedEvent;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,11 @@ public class IntegratedScoreProcessor
         );
 
         if (officialSettlement && quantitativeBaseScore != null) {
-            quantitativePoint = performancePointCalculator.percentageToContributionPoint(quantitativeBaseScore);
+            quantitativePoint = applyEvaluationWeightToPoint(
+                item,
+                QUANTITATIVE_POINT_TYPE,
+                performancePointCalculator.percentageToContributionPoint(quantitativeBaseScore)
+            );
             events.add(buildEvent(
                 item,
                 QUANTITATIVE_POINT_TYPE,
@@ -59,7 +64,11 @@ public class IntegratedScoreProcessor
         }
 
         if (officialSettlement && item.getQualitativeScore() != null) {
-            qualitativePoint = performancePointCalculator.percentageToContributionPoint(item.getQualitativeScore());
+            qualitativePoint = applyEvaluationWeightToPoint(
+                item,
+                QUALITATIVE_POINT_TYPE,
+                performancePointCalculator.percentageToContributionPoint(item.getQualitativeScore())
+            );
             events.add(buildEvent(item, QUALITATIVE_POINT_TYPE, BigDecimal.valueOf(qualitativePoint), "Monthly qualitative settlement contribution"));
         }
 
@@ -69,6 +78,7 @@ public class IntegratedScoreProcessor
 
             int kmsPoint = performancePointCalculator.kmsContributionPoint(kmsApprovedArticleCount);
             if (kmsPoint > 0) {
+                kmsPoint = applyEvaluationWeightToPoint(item, KNOWLEDGE_SHARING_POINT_TYPE, kmsPoint);
                 events.add(buildEvent(
                     item,
                     KNOWLEDGE_SHARING_POINT_TYPE,
@@ -123,6 +133,85 @@ public class IntegratedScoreProcessor
             .pointDescription(description)
             .occurredAt(item.getOccurredAt())
             .build();
+    }
+
+    private int applyEvaluationWeightToPoint(
+        IntegratedScoreAggregate item,
+        String pointType,
+        int basePoint
+    ) {
+        if (basePoint <= 0) {
+            return basePoint;
+        }
+
+        String employeeTier = item.getEmployeeTier();
+        Map<String, Integer> configuredWeights = item.getEvaluationCategoryWeights();
+
+        return switch (pointType) {
+            case QUANTITATIVE_POINT_TYPE -> scalePoint(
+                basePoint,
+                resolveCombinedConfiguredWeight(configuredWeights, employeeTier, "PRODUCTIVITY", "EQUIPMENT_RESPONSE"),
+                resolveCombinedBaselineWeight(employeeTier, "PRODUCTIVITY", "EQUIPMENT_RESPONSE")
+            );
+            case QUALITATIVE_POINT_TYPE -> scalePoint(
+                basePoint,
+                resolveConfiguredWeight(configuredWeights, employeeTier, "PROCESS_INNOVATION"),
+                resolveBaselineWeight(employeeTier, "PROCESS_INNOVATION")
+            );
+            case KNOWLEDGE_SHARING_POINT_TYPE -> scalePoint(
+                basePoint,
+                resolveConfiguredWeight(configuredWeights, employeeTier, "KNOWLEDGE_SHARING"),
+                resolveBaselineWeight(employeeTier, "KNOWLEDGE_SHARING")
+            );
+            default -> basePoint;
+        };
+    }
+
+    private int resolveCombinedConfiguredWeight(
+        Map<String, Integer> configuredWeights,
+        String employeeTier,
+        String firstCategory,
+        String secondCategory
+    ) {
+        return resolveConfiguredWeight(configuredWeights, employeeTier, firstCategory)
+            + resolveConfiguredWeight(configuredWeights, employeeTier, secondCategory);
+    }
+
+    private int resolveCombinedBaselineWeight(String employeeTier, String firstCategory, String secondCategory) {
+        return resolveBaselineWeight(employeeTier, firstCategory)
+            + resolveBaselineWeight(employeeTier, secondCategory);
+    }
+
+    private int resolveConfiguredWeight(
+        Map<String, Integer> configuredWeights,
+        String employeeTier,
+        String category
+    ) {
+        if (configuredWeights == null || configuredWeights.isEmpty()) {
+            return resolveBaselineWeight(employeeTier, category);
+        }
+        return configuredWeights.getOrDefault(category, resolveBaselineWeight(employeeTier, category));
+    }
+
+    private int resolveBaselineWeight(String employeeTier, String category) {
+        boolean strategicTier = tierAwareKpiScoreCalculator.isStrategicTier(employeeTier);
+        return switch (category) {
+            case "PRODUCTIVITY" -> strategicTier ? 20 : 60;
+            case "EQUIPMENT_RESPONSE" -> strategicTier ? 40 : 20;
+            case "PROCESS_INNOVATION" -> strategicTier ? 30 : 10;
+            case "KNOWLEDGE_SHARING" -> 10;
+            default -> 100;
+        };
+    }
+
+    private int scalePoint(int basePoint, int configuredWeight, int baselineWeight) {
+        if (baselineWeight <= 0) {
+            return basePoint;
+        }
+        return BigDecimal.valueOf(basePoint)
+            .multiply(BigDecimal.valueOf(configuredWeight))
+            .divide(BigDecimal.valueOf(baselineWeight), 0, RoundingMode.HALF_UP)
+            .intValue();
     }
 
     private SkillGrowthCalculatedEvent buildSkillGrowthEvent(

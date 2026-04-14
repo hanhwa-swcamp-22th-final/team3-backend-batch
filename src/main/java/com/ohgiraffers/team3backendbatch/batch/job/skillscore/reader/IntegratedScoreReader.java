@@ -9,6 +9,8 @@ import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeSkillKeywordC
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.MatchedKeywordDetailEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.kms.repository.KmsArticleProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.order.repository.OrderAssignmentProjectionRepository;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.entity.EvaluationWeightConfigProjectionEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.repository.EvaluationWeightConfigProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.EvaluationCommentRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeScoreProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.EmployeeProjectionEntity;
@@ -51,6 +53,7 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
     private final EvaluationCommentRepository evaluationCommentRepository;
     private final OrderAssignmentProjectionRepository orderAssignmentProjectionRepository;
     private final KmsArticleProjectionRepository kmsArticleProjectionRepository;
+    private final EvaluationWeightConfigProjectionRepository evaluationWeightConfigProjectionRepository;
     private final QualitativeSkillKeywordClassifier qualitativeSkillKeywordClassifier;
     private final ObjectMapper objectMapper;
 
@@ -98,6 +101,7 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         );
         Map<Long, BigDecimal> qualitativeScores = loadQualitativeScores(evaluationPeriodId);
         Map<Long, Map<String, BigDecimal>> qualitativeSkillScores = buildQualitativeSkillScores(evaluationPeriodId, qualitativeScores);
+        Map<String, Map<String, Integer>> evaluationCategoryWeightsByTierGroup = loadEvaluationCategoryWeights();
         Map<Long, Integer> kmsApprovedArticleCounts = loadKmsApprovedArticleCounts(startDate, endDate);
         Map<Long, Integer> challengeCounts = orderAssignmentProjectionRepository.findChallengeCountsByAssignedAtBetween(
                 startDate.atStartOfDay(),
@@ -120,6 +124,7 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
                 quantitativeScores,
                 qualitativeScores,
                 qualitativeSkillScores,
+                evaluationCategoryWeightsByTierGroup,
                 kmsApprovedArticleCounts,
                 challengeCounts
             ))
@@ -142,9 +147,22 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
 
     private Optional<EvaluationPeriodProjectionEntity> resolveEvaluationPeriod(BatchPeriodType periodType) {
         if (requestedEvaluationPeriodId != null) {
-            return evaluationPeriodProjectionRepository.findById(requestedEvaluationPeriodId);
+            return evaluationPeriodProjectionRepository.findById(requestedEvaluationPeriodId)
+                .map(this::validateEvaluationPeriod);
         }
         return evaluationPeriodProjectionRepository.findLatestConfirmedPeriod(periodType);
+    }
+
+    private EvaluationPeriodProjectionEntity validateEvaluationPeriod(EvaluationPeriodProjectionEntity period) {
+        if (!"CONFIRMED".equalsIgnoreCase(period.getStatus())) {
+            throw new IllegalStateException(
+                "Requested evaluation period is not confirmed. evaluationPeriodId="
+                    + period.getEvaluationPeriodId()
+                    + ", status="
+                    + period.getStatus()
+            );
+        }
+        return period;
     }
 
     private Map<Long, QuantitativeEvaluationRepository.MonthlyQuantitativeScoreView> loadQuantitativeScores(
@@ -224,6 +242,7 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         Map<Long, QuantitativeEvaluationRepository.MonthlyQuantitativeScoreView> quantitativeScores,
         Map<Long, BigDecimal> qualitativeScores,
         Map<Long, Map<String, BigDecimal>> qualitativeSkillScores,
+        Map<String, Map<String, Integer>> evaluationCategoryWeightsByTierGroup,
         Map<Long, Integer> kmsApprovedArticleCounts,
         Map<Long, Integer> challengeCounts
     ) {
@@ -234,6 +253,10 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         BigDecimal quantitativeEquipmentResponseScore = quantitativeView == null ? null : quantitativeView.getAverageEquipmentResponseScore();
         BigDecimal qualitativeScore = qualitativeScores.get(employee.getEmployeeId());
         Map<String, BigDecimal> employeeQualitativeSkillScores = qualitativeSkillScores.getOrDefault(employee.getEmployeeId(), Map.of());
+        Map<String, Integer> evaluationCategoryWeights = evaluationCategoryWeightsByTierGroup.getOrDefault(
+            resolveEvaluationTierGroup(employee.getEmployeeTier()),
+            Map.of()
+        );
         Integer kmsApprovedArticleCount = kmsApprovedArticleCounts.getOrDefault(employee.getEmployeeId(), 0);
         Integer challengeTaskCount = challengeCounts.getOrDefault(employee.getEmployeeId(), 0);
 
@@ -258,10 +281,31 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
             .quantitativeEquipmentResponseScore(quantitativeEquipmentResponseScore)
             .qualitativeScore(qualitativeScore)
             .qualitativeSkillScores(employeeQualitativeSkillScores)
+            .evaluationCategoryWeights(evaluationCategoryWeights)
             .kmsApprovedArticleCount(kmsApprovedArticleCount)
             .challengeTaskCount(challengeTaskCount)
             .performancePointEvents(List.of())
             .build();
+    }
+
+    private Map<String, Map<String, Integer>> loadEvaluationCategoryWeights() {
+        Map<String, Map<String, Integer>> result = new LinkedHashMap<>();
+        for (EvaluationWeightConfigProjectionEntity projection : evaluationWeightConfigProjectionRepository.findAllByActiveTrueAndDeletedFalse()) {
+            if (projection.getTierGroup() == null || projection.getCategoryCode() == null || projection.getWeightPercent() == null) {
+                continue;
+            }
+            result.computeIfAbsent(projection.getTierGroup().trim().toUpperCase(), ignored -> new LinkedHashMap<>())
+                .put(projection.getCategoryCode().trim().toUpperCase(), projection.getWeightPercent());
+        }
+        return result;
+    }
+
+    private String resolveEvaluationTierGroup(String employeeTier) {
+        if (employeeTier == null || employeeTier.isBlank()) {
+            return "BC";
+        }
+        String normalized = employeeTier.trim().toUpperCase();
+        return ("S".equals(normalized) || "A".equals(normalized)) ? "SA" : "BC";
     }
 
     private List<MatchedKeywordDetail> parseMatchedKeywordDetails(String detailsJson, String keywordsJson) {

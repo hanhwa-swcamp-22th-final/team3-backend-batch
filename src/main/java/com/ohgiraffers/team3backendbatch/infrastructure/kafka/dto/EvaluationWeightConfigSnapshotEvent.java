@@ -10,12 +10,12 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TierConfigSnapshotEvent {
+public class EvaluationWeightConfigSnapshotEvent {
 
-    private Long tierConfigId;
-    private String tier;
-    private String weightDistribution;
-    private Integer promotionPoint;
+    private Long evaluationWeightConfigId;
+    private String tierGroup;
+    private String categoryCode;
+    private Integer weightPercent;
     private Boolean active;
     private Boolean deleted;
     private LocalDateTime occurredAt;

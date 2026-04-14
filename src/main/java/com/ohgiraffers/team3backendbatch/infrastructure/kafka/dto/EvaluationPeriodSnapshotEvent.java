@@ -17,7 +17,6 @@ public class EvaluationPeriodSnapshotEvent {
     private Long algorithmVersionId;
     private Integer evaluationYear;
     private Integer evaluationSequence;
-    private String evaluationType;
     private LocalDate startDate;
     private LocalDate endDate;
     private String status;

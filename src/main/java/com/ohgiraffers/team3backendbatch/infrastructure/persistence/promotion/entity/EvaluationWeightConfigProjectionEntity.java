@@ -10,25 +10,25 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(catalog = "batch_projection", name = "tier_config_projection")
+@Table(catalog = "batch_projection", name = "evaluation_weight_config_projection")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class TierConfigProjectionEntity {
+public class EvaluationWeightConfigProjectionEntity {
 
     private static final long SYSTEM_ACTOR_ID = 0L;
 
     @Id
-    @Column(name = "tier_config_id")
-    private Long tierConfigId;
+    @Column(name = "evaluation_weight_config_id")
+    private Long evaluationWeightConfigId;
 
-    @Column(name = "tier_config_tier", nullable = false)
-    private String tierConfigTier;
+    @Column(name = "tier_group", nullable = false)
+    private String tierGroup;
 
-    @Column(name = "tier_config_weight_distribution")
-    private String tierConfigWeightDistribution;
+    @Column(name = "category_code", nullable = false)
+    private String categoryCode;
 
-    @Column(name = "tier_config_promotion_point")
-    private Integer tierConfigPromotionPoint;
+    @Column(name = "weight_percent", nullable = false)
+    private Integer weightPercent;
 
     @Column(name = "is_active", nullable = false)
     private Boolean active;
@@ -51,21 +51,21 @@ public class TierConfigProjectionEntity {
     @Column(name = "updated_by")
     private Long updatedBy;
 
-    public static TierConfigProjectionEntity create(
-        Long tierConfigId,
-        String tierConfigTier,
-        String tierConfigWeightDistribution,
-        Integer tierConfigPromotionPoint,
+    public static EvaluationWeightConfigProjectionEntity create(
+        Long evaluationWeightConfigId,
+        String tierGroup,
+        String categoryCode,
+        Integer weightPercent,
         Boolean active,
         Boolean deleted,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
-        TierConfigProjectionEntity entity = new TierConfigProjectionEntity();
-        entity.tierConfigId = tierConfigId;
-        entity.tierConfigTier = tierConfigTier;
-        entity.tierConfigWeightDistribution = tierConfigWeightDistribution;
-        entity.tierConfigPromotionPoint = tierConfigPromotionPoint;
+        EvaluationWeightConfigProjectionEntity entity = new EvaluationWeightConfigProjectionEntity();
+        entity.evaluationWeightConfigId = evaluationWeightConfigId;
+        entity.tierGroup = tierGroup;
+        entity.categoryCode = categoryCode;
+        entity.weightPercent = weightPercent;
         entity.active = active;
         entity.deleted = deleted;
         entity.occurredAt = occurredAt;
@@ -77,17 +77,17 @@ public class TierConfigProjectionEntity {
     }
 
     public void refreshSnapshot(
-        String tierConfigTier,
-        String tierConfigWeightDistribution,
-        Integer tierConfigPromotionPoint,
+        String tierGroup,
+        String categoryCode,
+        Integer weightPercent,
         Boolean active,
         Boolean deleted,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
-        this.tierConfigTier = tierConfigTier;
-        this.tierConfigWeightDistribution = tierConfigWeightDistribution;
-        this.tierConfigPromotionPoint = tierConfigPromotionPoint;
+        this.tierGroup = tierGroup;
+        this.categoryCode = categoryCode;
+        this.weightPercent = weightPercent;
         this.active = active;
         this.deleted = deleted;
         this.occurredAt = occurredAt;
