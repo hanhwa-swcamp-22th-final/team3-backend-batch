@@ -65,10 +65,11 @@ public class QuantitativeEvaluationProcessor
             item.getEnvironmentParticleWeight(),
             policy
         );
-        BigDecimal materialShielding = quantitativeScoreCalculator.calculateMaterialShielding(
+        BigDecimal materialShielding = quantitativeScoreCalculator.resolveMaterialShielding(
             item.getDefectiveWorkersSameLot(),
             item.getTotalWorkersSameLot(),
             item.getLotDefectThreshold(),
+            item.getPeriodType(),
             policy
         );
         BigDecimal difficultyAdjustment = quantitativeScoreCalculator.calculateDifficultyAdjustment(

@@ -25,6 +25,11 @@ public class MesQualityMeasurementListener {
         containerFactory = "mesQualityMeasurementKafkaListenerContainerFactory"
     )
     public void listen(MesQualityMeasurementEvent event) {
+        if (event == null) {
+            log.warn("Skipped malformed MES quality measurement event.");
+            return;
+        }
+
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime occurredAt = event.getOccurredAt() == null ? now : event.getOccurredAt();
         MesQualityMeasurementProjectionId projectionId = new MesQualityMeasurementProjectionId(

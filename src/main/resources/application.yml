@@ -62,6 +62,7 @@ batch:
   schedule:
     enabled: ${BATCH_SCHEDULE_ENABLED:false}
     zone: ${BATCH_SCHEDULE_ZONE:Asia/Seoul}
+    quantitative-period-type: ${BATCH_SCHEDULE_QUANTITATIVE_PERIOD_TYPE:MONTH}
     quantitative-cron: ${BATCH_SCHEDULE_QUANTITATIVE_CRON:0 0 1 * * *}
     qualitative-normalization-cron: ${BATCH_SCHEDULE_QUALITATIVE_NORMALIZATION_CRON:0 15 1 1 * *}
     score-cron: ${BATCH_SCHEDULE_SCORE_CRON:0 30 1 * * *}

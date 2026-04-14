@@ -24,6 +24,11 @@ public class MesProductionResultListener {
         containerFactory = "mesProductionResultKafkaListenerContainerFactory"
     )
     public void listen(MesProductionResultEvent event) {
+        if (event == null) {
+            log.warn("Skipped malformed MES production result event.");
+            return;
+        }
+
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime occurredAt = event.getOccurredAt() == null ? now : event.getOccurredAt();
 

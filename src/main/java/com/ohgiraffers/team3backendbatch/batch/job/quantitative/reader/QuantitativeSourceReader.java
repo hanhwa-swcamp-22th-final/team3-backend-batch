@@ -4,7 +4,9 @@ import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationSourceRow;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.processor.QuantitativeEvaluationProcessor;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.EvaluationPeriodProjectionEntity;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.QuantitativeEvaluationQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EvaluationPeriodProjectionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
 
     private final QuantitativeEvaluationQueryMapper quantitativeEvaluationQueryMapper;
     private final QuantitativeEvaluationProcessor quantitativeEvaluationProcessor;
+    private final EvaluationPeriodProjectionRepository evaluationPeriodProjectionRepository;
     private final Long evaluationPeriodId;
     private final Long employeeId;
     private final boolean force;
@@ -39,6 +42,7 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
     public QuantitativeSourceReader(
         QuantitativeEvaluationQueryMapper quantitativeEvaluationQueryMapper,
         QuantitativeEvaluationProcessor quantitativeEvaluationProcessor,
+        EvaluationPeriodProjectionRepository evaluationPeriodProjectionRepository,
         @Value("#{jobParameters['evaluationPeriodId']}") Long evaluationPeriodId,
         @Value("#{jobParameters['employeeId']}") Long employeeId,
         @Value("#{jobParameters['force']}") String force,
@@ -46,6 +50,7 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
     ) {
         this.quantitativeEvaluationQueryMapper = quantitativeEvaluationQueryMapper;
         this.quantitativeEvaluationProcessor = quantitativeEvaluationProcessor;
+        this.evaluationPeriodProjectionRepository = evaluationPeriodProjectionRepository;
         this.evaluationPeriodId = evaluationPeriodId;
         this.employeeId = employeeId;
         this.force = Boolean.parseBoolean(force);
@@ -55,13 +60,18 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
     @Override
     public QuantitativeEvaluationAggregate read() {
         if (iterator == null) {
-            if (evaluationPeriodId == null) {
-                log.warn("No evaluationPeriodId job parameter provided for quantitative evaluation job.");
+            Long resolvedEvaluationPeriodId = resolveEvaluationPeriodId();
+            if (resolvedEvaluationPeriodId == null) {
+                log.warn(
+                    "No evaluation period found for quantitative evaluation job. requestedEvaluationPeriodId={}, periodType={}",
+                    evaluationPeriodId,
+                    periodType
+                );
                 return null;
             }
 
             List<QuantitativeEvaluationAggregate> items = enrichMonthlyGroupStatistics(quantitativeEvaluationQueryMapper
-                .findQuantitativeSourcesForEvaluation(evaluationPeriodId, employeeId, force)
+                .findQuantitativeSourcesForEvaluation(resolvedEvaluationPeriodId, employeeId, force)
                 .stream()
                 .map(this::toAggregate)
                 .toList());
@@ -69,7 +79,7 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             iterator = items.iterator();
             log.info(
                 "Loaded quantitative source rows. evaluationPeriodId={}, employeeId={}, periodType={}, force={}, count={}",
-                evaluationPeriodId,
+                resolvedEvaluationPeriodId,
                 employeeId,
                 periodType,
                 force,
@@ -81,6 +91,16 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             return null;
         }
         return iterator.next();
+    }
+
+    private Long resolveEvaluationPeriodId() {
+        if (evaluationPeriodId != null) {
+            return evaluationPeriodId;
+        }
+
+        return evaluationPeriodProjectionRepository.findLatestConfirmedPeriod(periodType)
+            .map(EvaluationPeriodProjectionEntity::getEvaluationPeriodId)
+            .orElse(null);
     }
 
     private List<QuantitativeEvaluationAggregate> enrichMonthlyGroupStatistics(List<QuantitativeEvaluationAggregate> rawItems) {

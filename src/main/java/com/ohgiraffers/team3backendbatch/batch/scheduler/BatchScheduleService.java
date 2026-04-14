@@ -4,6 +4,7 @@ import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.common.launcher.BatchJobLauncherFacade;
 import com.ohgiraffers.team3backendbatch.batch.common.support.BatchJobNames;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -23,9 +24,18 @@ public class BatchScheduleService {
 
     private final BatchJobLauncherFacade batchJobLauncherFacade;
 
+    @Value("${batch.schedule.quantitative-period-type:MONTH}")
+    private String quantitativePeriodType;
+
     @Scheduled(cron = "${batch.schedule.quantitative-cron}", zone = "${batch.schedule.zone}")
     public void runQuantitativeEvaluationJob() {
-        batchJobLauncherFacade.launchScheduled(BatchJobNames.QUANTITATIVE_EVALUATION_JOB, "scheduler");
+        batchJobLauncherFacade.launchScheduled(
+            BatchJobNames.QUANTITATIVE_EVALUATION_JOB,
+            parsePeriodType(quantitativePeriodType),
+            null,
+            "scheduler",
+            "Automatic quantitative evaluation"
+        );
     }
 
     @Scheduled(cron = "${batch.schedule.qualitative-normalization-cron}", zone = "${batch.schedule.zone}")
@@ -47,5 +57,12 @@ public class BatchScheduleService {
     @Scheduled(cron = "${batch.schedule.promotion-cron}", zone = "${batch.schedule.zone}")
     public void runPromotionCandidateJob() {
         batchJobLauncherFacade.launchScheduled(BatchJobNames.PROMOTION_CANDIDATE_JOB, "scheduler");
+    }
+
+    private BatchPeriodType parsePeriodType(String value) {
+        if (value == null || value.isBlank()) {
+            return BatchPeriodType.MONTH;
+        }
+        return BatchPeriodType.valueOf(value.trim().toUpperCase());
     }
 }
