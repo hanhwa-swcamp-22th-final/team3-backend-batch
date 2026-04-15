@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.EvaluationCommentQueryMapper">
+
+    <select id="findMatchedKeywordsByEvaluationPeriodId"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.MonthlyMatchedKeywordRow">
+        SELECT
+            q.evaluatee_id AS employeeId,
+            ec.matched_keywords AS matchedKeywords,
+            ec.matched_keyword_details AS matchedKeywordDetails
+        FROM evaluation_comment ec
+        JOIN qualitative_evaluation q
+          ON q.qualitative_evaluation_id = ec.qualitative_evaluation_id
+        WHERE q.evaluation_period_id = #{evaluationPeriodId}
+    </select>
+
+    <select id="findMatchedKeywordsByPeriodRange"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.MonthlyMatchedKeywordRow">
+        SELECT
+            q.evaluatee_id AS employeeId,
+            ec.matched_keywords AS matchedKeywords,
+            ec.matched_keyword_details AS matchedKeywordDetails
+        FROM evaluation_comment ec
+        JOIN qualitative_evaluation q
+          ON q.qualitative_evaluation_id = ec.qualitative_evaluation_id
+        JOIN batch_projection.evaluation_period_projection ep
+          ON ep.evaluation_period_id = q.evaluation_period_id
+        WHERE ep.status = 'CONFIRMED'
+          AND DATEDIFF(ep.end_date, ep.start_date) + 1 BETWEEN 28 AND 31
+          AND ep.start_date &gt;= #{startDate}
+          AND ep.end_date &lt;= #{endDate}
+    </select>
+</mapper>

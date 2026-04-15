@@ -30,6 +30,12 @@ public class TierConfigProjectionEntity {
     @Column(name = "tier_config_promotion_point")
     private Integer tierConfigPromotionPoint;
 
+    @Column(name = "is_active", nullable = false)
+    private Boolean active;
+
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean deleted;
+
     @Column(name = "occurred_at")
     private LocalDateTime occurredAt;
 
@@ -50,6 +56,8 @@ public class TierConfigProjectionEntity {
         String tierConfigTier,
         String tierConfigWeightDistribution,
         Integer tierConfigPromotionPoint,
+        Boolean active,
+        Boolean deleted,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
@@ -58,6 +66,8 @@ public class TierConfigProjectionEntity {
         entity.tierConfigTier = tierConfigTier;
         entity.tierConfigWeightDistribution = tierConfigWeightDistribution;
         entity.tierConfigPromotionPoint = tierConfigPromotionPoint;
+        entity.active = active;
+        entity.deleted = deleted;
         entity.occurredAt = occurredAt;
         entity.createdAt = now;
         entity.createdBy = SYSTEM_ACTOR_ID;
@@ -70,12 +80,16 @@ public class TierConfigProjectionEntity {
         String tierConfigTier,
         String tierConfigWeightDistribution,
         Integer tierConfigPromotionPoint,
+        Boolean active,
+        Boolean deleted,
         LocalDateTime occurredAt,
         LocalDateTime now
     ) {
         this.tierConfigTier = tierConfigTier;
         this.tierConfigWeightDistribution = tierConfigWeightDistribution;
         this.tierConfigPromotionPoint = tierConfigPromotionPoint;
+        this.active = active;
+        this.deleted = deleted;
         this.occurredAt = occurredAt;
         this.updatedAt = now;
         this.updatedBy = SYSTEM_ACTOR_ID;

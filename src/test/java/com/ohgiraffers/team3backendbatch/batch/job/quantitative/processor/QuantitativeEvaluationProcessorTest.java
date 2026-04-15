@@ -2,6 +2,7 @@ package com.ohgiraffers.team3backendbatch.batch.job.quantitative.processor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.domain.quantitative.scoring.QuantitativeScoreCalculator;
@@ -11,7 +12,7 @@ import org.junit.jupiter.api.Test;
 class QuantitativeEvaluationProcessorTest {
 
     private final QuantitativeEvaluationProcessor processor =
-        new QuantitativeEvaluationProcessor(new QuantitativeScoreCalculator());
+        new QuantitativeEvaluationProcessor(new QuantitativeScoreCalculator(new ObjectMapper()));
 
     @Test
     void process_shouldPopulateCalculatedFields() throws Exception {
@@ -55,6 +56,6 @@ class QuantitativeEvaluationProcessorTest {
         assertThat(result.getProvisionalSQuant()).isEqualByComparingTo("27.00");
         assertThat(result.getSQuant()).isEqualByComparingTo("31.00");
         assertThat(result.getTScore()).isEqualByComparingTo("31.00");
-        assertThat(result.getStatus()).isEqualTo("SETTLED");
+        assertThat(result.getStatus()).isEqualTo("CONFIRMED");
     }
 }

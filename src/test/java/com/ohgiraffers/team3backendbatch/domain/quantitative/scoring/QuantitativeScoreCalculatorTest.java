@@ -2,6 +2,7 @@ package com.ohgiraffers.team3backendbatch.domain.quantitative.scoring;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 class QuantitativeScoreCalculatorTest {
 
-    private final QuantitativeScoreCalculator calculator = new QuantitativeScoreCalculator();
+    private final QuantitativeScoreCalculator calculator = new QuantitativeScoreCalculator(new ObjectMapper());
 
     @Test
     void shouldCalculateMonthlySettlementScoresFromStagedInputs() {
@@ -88,7 +89,7 @@ class QuantitativeScoreCalculatorTest {
         assertThat(finalSQuant).isEqualByComparingTo("55.20");
         assertThat(calculator.calculateTScore(finalSQuant, BigDecimal.valueOf(80), BigDecimal.valueOf(10), BatchPeriodType.MONTH))
             .isEqualByComparingTo("25.20");
-        assertThat(calculator.resolveStatus(BatchPeriodType.MONTH)).isEqualTo("SETTLED");
+        assertThat(calculator.resolveStatus(BatchPeriodType.MONTH)).isEqualTo("CONFIRMED");
     }
 
     @Test
@@ -117,7 +118,7 @@ class QuantitativeScoreCalculatorTest {
         assertThat(provisionalSQuant).isEqualByComparingTo("85.50");
         assertThat(finalSQuant).isEqualByComparingTo("85.50");
         assertThat(calculator.calculateTScore(finalSQuant, BigDecimal.valueOf(75), BigDecimal.valueOf(8), BatchPeriodType.WEEK)).isNull();
-        assertThat(calculator.resolveStatus(BatchPeriodType.WEEK)).isEqualTo("PREVIEW");
+        assertThat(calculator.resolveStatus(BatchPeriodType.WEEK)).isEqualTo("TEMPORARY");
     }
 
     @Test

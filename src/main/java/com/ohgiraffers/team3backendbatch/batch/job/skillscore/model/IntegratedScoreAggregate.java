@@ -29,6 +29,7 @@ public class IntegratedScoreAggregate {
     private final BigDecimal quantitativeEquipmentResponseScore;
     private final BigDecimal qualitativeScore;
     private final Map<String, BigDecimal> qualitativeSkillScores;
+    private final Map<String, Integer> evaluationCategoryWeights;
     private final Integer kmsApprovedArticleCount;
     private final Integer challengeTaskCount;
     private final Integer quantitativePoint;
@@ -46,6 +47,7 @@ public class IntegratedScoreAggregate {
             .quantitativePoint(quantitativePoint)
             .qualitativePoint(qualitativePoint)
             .qualitativeSkillScores(qualitativeSkillScores == null ? Map.of() : Map.copyOf(qualitativeSkillScores))
+            .evaluationCategoryWeights(evaluationCategoryWeights == null ? Map.of() : Map.copyOf(evaluationCategoryWeights))
             .performancePointEvents(performancePointEvents == null ? List.of() : List.copyOf(performancePointEvents))
             .skillGrowthEvents(skillGrowthEvents == null ? List.of() : List.copyOf(skillGrowthEvents))
             .build();

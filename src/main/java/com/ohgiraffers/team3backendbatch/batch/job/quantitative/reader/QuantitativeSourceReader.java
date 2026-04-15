@@ -4,7 +4,7 @@ import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationSourceRow;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.processor.QuantitativeEvaluationProcessor;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.EvaluationPeriodProjectionEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.QuantitativeEvaluationQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EvaluationPeriodProjectionRepository;
 import java.math.BigDecimal;
@@ -31,7 +31,7 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
 
     private final QuantitativeEvaluationQueryMapper quantitativeEvaluationQueryMapper;
     private final QuantitativeEvaluationProcessor quantitativeEvaluationProcessor;
-    private final EvaluationPeriodProjectionRepository evaluationPeriodProjectionRepository;
+    private final EvaluationPeriodQueryMapper evaluationPeriodQueryMapper;
     private final Long evaluationPeriodId;
     private final Long employeeId;
     private final boolean force;
@@ -42,7 +42,7 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
     public QuantitativeSourceReader(
         QuantitativeEvaluationQueryMapper quantitativeEvaluationQueryMapper,
         QuantitativeEvaluationProcessor quantitativeEvaluationProcessor,
-        EvaluationPeriodProjectionRepository evaluationPeriodProjectionRepository,
+        EvaluationPeriodQueryMapper evaluationPeriodQueryMapper,
         @Value("#{jobParameters['evaluationPeriodId']}") Long evaluationPeriodId,
         @Value("#{jobParameters['employeeId']}") Long employeeId,
         @Value("#{jobParameters['force']}") String force,
@@ -50,7 +50,7 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
     ) {
         this.quantitativeEvaluationQueryMapper = quantitativeEvaluationQueryMapper;
         this.quantitativeEvaluationProcessor = quantitativeEvaluationProcessor;
-        this.evaluationPeriodProjectionRepository = evaluationPeriodProjectionRepository;
+        this.evaluationPeriodQueryMapper = evaluationPeriodQueryMapper;
         this.evaluationPeriodId = evaluationPeriodId;
         this.employeeId = employeeId;
         this.force = Boolean.parseBoolean(force);
@@ -98,8 +98,8 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             return evaluationPeriodId;
         }
 
-        return evaluationPeriodProjectionRepository.findLatestConfirmedPeriod(periodType)
-            .map(EvaluationPeriodProjectionEntity::getEvaluationPeriodId)
+        return evaluationPeriodQueryMapper.findLatestConfirmedPeriod(periodType)
+            .map(com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodProjectionRow::getEvaluationPeriodId)
             .orElse(null);
     }
 

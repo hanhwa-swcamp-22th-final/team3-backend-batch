@@ -31,9 +31,6 @@ public class EvaluationPeriodProjectionEntity {
     @Column(name = "evaluation_sequence", nullable = false)
     private Integer evaluationSequence;
 
-    @Column(name = "evaluation_type")
-    private String evaluationType;
-
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
@@ -78,7 +75,6 @@ public class EvaluationPeriodProjectionEntity {
         Long algorithmVersionId,
         Integer evaluationYear,
         Integer evaluationSequence,
-        String evaluationType,
         LocalDate startDate,
         LocalDate endDate,
         String status,
@@ -95,7 +91,6 @@ public class EvaluationPeriodProjectionEntity {
         entity.algorithmVersionId = algorithmVersionId;
         entity.evaluationYear = evaluationYear;
         entity.evaluationSequence = evaluationSequence;
-        entity.evaluationType = evaluationType;
         entity.startDate = startDate;
         entity.endDate = endDate;
         entity.status = status;
@@ -116,7 +111,6 @@ public class EvaluationPeriodProjectionEntity {
         Long algorithmVersionId,
         Integer evaluationYear,
         Integer evaluationSequence,
-        String evaluationType,
         LocalDate startDate,
         LocalDate endDate,
         String status,
@@ -131,7 +125,6 @@ public class EvaluationPeriodProjectionEntity {
         this.algorithmVersionId = algorithmVersionId;
         this.evaluationYear = evaluationYear;
         this.evaluationSequence = evaluationSequence;
-        this.evaluationType = evaluationType;
         this.startDate = startDate;
         this.endDate = endDate;
         this.status = status;

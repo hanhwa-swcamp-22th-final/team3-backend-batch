@@ -16,5 +16,7 @@ public class TierConfigSnapshotEvent {
     private String tier;
     private String weightDistribution;
     private Integer promotionPoint;
+    private Boolean active;
+    private Boolean deleted;
     private LocalDateTime occurredAt;
 }

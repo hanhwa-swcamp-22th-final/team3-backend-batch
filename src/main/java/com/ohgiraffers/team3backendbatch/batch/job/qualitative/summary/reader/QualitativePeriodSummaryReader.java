@@ -2,6 +2,8 @@ package com.ohgiraffers.team3backendbatch.batch.job.qualitative.summary.reader;
 
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.job.qualitative.summary.model.QualitativePeriodSummaryTarget;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativePeriodSummaryCandidateRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativePeriodSummaryQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativePeriodSummaryProjectionRepository;
 import java.util.Iterator;
 import java.util.List;
@@ -16,19 +18,19 @@ import org.springframework.stereotype.Component;
 @StepScope
 public class QualitativePeriodSummaryReader implements ItemReader<QualitativePeriodSummaryTarget> {
 
-    private final QualitativePeriodSummaryProjectionRepository qualitativePeriodSummaryProjectionRepository;
+    private final QualitativePeriodSummaryQueryMapper qualitativePeriodSummaryQueryMapper;
     private final Long evaluationPeriodId;
     private final Long employeeId;
     private final BatchPeriodType periodType;
     private Iterator<QualitativePeriodSummaryTarget> iterator;
 
     public QualitativePeriodSummaryReader(
-        QualitativePeriodSummaryProjectionRepository qualitativePeriodSummaryProjectionRepository,
+        QualitativePeriodSummaryQueryMapper qualitativePeriodSummaryQueryMapper,
         @Value("#{jobParameters['evaluationPeriodId']}") Long evaluationPeriodId,
         @Value("#{jobParameters['employeeId']}") Long employeeId,
         @Value("#{jobParameters['periodType']}") String periodType
     ) {
-        this.qualitativePeriodSummaryProjectionRepository = qualitativePeriodSummaryProjectionRepository;
+        this.qualitativePeriodSummaryQueryMapper = qualitativePeriodSummaryQueryMapper;
         this.evaluationPeriodId = evaluationPeriodId;
         this.employeeId = employeeId;
         this.periodType = parsePeriodType(periodType);
@@ -52,7 +54,7 @@ public class QualitativePeriodSummaryReader implements ItemReader<QualitativePer
                 return null;
             }
 
-            List<QualitativePeriodSummaryTarget> items = qualitativePeriodSummaryProjectionRepository
+            List<QualitativePeriodSummaryTarget> items = qualitativePeriodSummaryQueryMapper
                 .findSummaryCandidates(evaluationPeriodId, employeeId)
                 .stream()
                 .map(candidate -> QualitativePeriodSummaryTarget.builder()

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodQueryMapper">
+
+    <select id="findLatestConfirmedPeriodByInclusiveDaysBetween"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodProjectionRow">
+        SELECT
+            ep.evaluation_period_id AS evaluationPeriodId,
+            ep.algorithm_version_id AS algorithmVersionId,
+            ep.evaluation_year AS evaluationYear,
+            ep.evaluation_sequence AS evaluationSequence,
+            ep.start_date AS startDate,
+            ep.end_date AS endDate,
+            ep.status AS status,
+            ep.policy_config AS policyConfig,
+            ep.parameters AS parameters,
+            ep.reference_values AS referenceValues
+        FROM batch_projection.evaluation_period_projection ep
+        WHERE ep.status = 'CONFIRMED'
+          AND DATEDIFF(ep.end_date, ep.start_date) + 1 BETWEEN #{minDays} AND #{maxDays}
+        ORDER BY ep.end_date DESC, ep.evaluation_period_id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findConfirmedMonthlyPeriodsWithin"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodProjectionRow">
+        SELECT
+            ep.evaluation_period_id AS evaluationPeriodId,
+            ep.algorithm_version_id AS algorithmVersionId,
+            ep.evaluation_year AS evaluationYear,
+            ep.evaluation_sequence AS evaluationSequence,
+            ep.start_date AS startDate,
+            ep.end_date AS endDate,
+            ep.status AS status,
+            ep.policy_config AS policyConfig,
+            ep.parameters AS parameters,
+            ep.reference_values AS referenceValues
+        FROM batch_projection.evaluation_period_projection ep
+        WHERE ep.status = 'CONFIRMED'
+          AND ep.start_date &gt;= #{startDate}
+          AND ep.end_date &lt;= #{endDate}
+          AND DATEDIFF(ep.end_date, ep.start_date) + 1 BETWEEN 28 AND 31
+        ORDER BY ep.start_date ASC, ep.evaluation_period_id ASC
+    </select>
+</mapper>
