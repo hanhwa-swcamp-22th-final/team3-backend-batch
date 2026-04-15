@@ -1,5 +1,6 @@
 package com.ohgiraffers.team3backendbatch.infrastructure.kafka.config;
 
+import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.EvaluationWeightConfigSnapshotEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointCalculatedEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.PerformancePointSnapshotEvent;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.MissionProgressEvent;
@@ -113,6 +114,23 @@ public class PromotionKafkaConfig {
         ConcurrentKafkaListenerContainerFactory<String, TierConfigSnapshotEvent> factory =
             new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(tierConfigSnapshotConsumerFactory());
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, EvaluationWeightConfigSnapshotEvent> evaluationWeightConfigSnapshotConsumerFactory() {
+        JsonDeserializer<EvaluationWeightConfigSnapshotEvent> deserializer =
+            new JsonDeserializer<>(EvaluationWeightConfigSnapshotEvent.class);
+        configureDeserializer(deserializer);
+        return new DefaultKafkaConsumerFactory<>(consumerConfig(), new StringDeserializer(), deserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, EvaluationWeightConfigSnapshotEvent>
+    evaluationWeightConfigSnapshotKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, EvaluationWeightConfigSnapshotEvent> factory =
+            new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(evaluationWeightConfigSnapshotConsumerFactory());
         return factory;
     }
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.kms.mapper.KmsArticleQueryMapper">
+
+    <select id="findApprovedArticleCountsByApprovedAtBetween"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.kms.mapper.KmsApprovedArticleCountRow">
+        SELECT
+            ka.author_id AS employeeId,
+            COUNT(*) AS approvedArticleCount
+        FROM batch_projection.kms_article_projection ka
+        WHERE ka.author_id IS NOT NULL
+          AND ka.article_status = 'APPROVED'
+          AND COALESCE(ka.deleted, 0) = 0
+          AND ka.approved_at &gt;= #{startAt}
+          AND ka.approved_at &lt; #{endExclusive}
+        GROUP BY ka.author_id
+        ORDER BY ka.author_id
+    </select>
+</mapper>

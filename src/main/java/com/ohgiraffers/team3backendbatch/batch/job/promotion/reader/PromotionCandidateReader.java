@@ -2,13 +2,14 @@ package com.ohgiraffers.team3backendbatch.batch.job.promotion.reader;
 
 import com.ohgiraffers.team3backendbatch.batch.job.promotion.model.PromotionCandidateSnapshot;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.entity.TierConfigProjectionEntity;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.repository.PerformancePointProjectionRepository;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.repository.PromotionHistoryProjectionRepository;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.mapper.EmployeePerformancePointTotalRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.mapper.PerformancePointQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.mapper.PromotionHistoryQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.repository.TierConfigProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.EmployeeProjectionEntity;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.EvaluationPeriodProjectionEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodProjectionRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EmployeeProjectionRepository;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EvaluationPeriodProjectionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -38,10 +39,10 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
     private static final BigDecimal PROMOTION_POINT_NORMALIZER = BigDecimal.valueOf(10_000);
 
     private final EmployeeProjectionRepository employeeProjectionRepository;
-    private final EvaluationPeriodProjectionRepository evaluationPeriodProjectionRepository;
+    private final EvaluationPeriodQueryMapper evaluationPeriodQueryMapper;
     private final TierConfigProjectionRepository tierConfigProjectionRepository;
-    private final PerformancePointProjectionRepository performancePointProjectionRepository;
-    private final PromotionHistoryProjectionRepository promotionHistoryProjectionRepository;
+    private final PerformancePointQueryMapper performancePointQueryMapper;
+    private final PromotionHistoryQueryMapper promotionHistoryQueryMapper;
 
     private Iterator<PromotionCandidateSnapshot> iterator = Collections.emptyIterator();
     private boolean initialized;
@@ -56,7 +57,7 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
     }
 
     private List<PromotionCandidateSnapshot> loadItems() {
-        EvaluationPeriodProjectionEntity evaluationPeriod = evaluationPeriodProjectionRepository
+        EvaluationPeriodProjectionRow evaluationPeriod = evaluationPeriodQueryMapper
             .findLatestConfirmedMonthlyPeriod()
             .orElse(null);
 
@@ -66,7 +67,7 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
         }
 
         Map<String, TierConfigProjectionEntity> tierConfigByTier = new HashMap<>();
-        for (TierConfigProjectionEntity projection : tierConfigProjectionRepository.findAll()) {
+        for (TierConfigProjectionEntity projection : tierConfigProjectionRepository.findAllByActiveTrueAndDeletedFalse()) {
             if (projection.getTierConfigTier() != null) {
                 tierConfigByTier.put(projection.getTierConfigTier().trim().toUpperCase(), projection);
             }
@@ -77,7 +78,7 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
         }
 
         Map<Long, BigDecimal> accumulatedPoints = new HashMap<>();
-        for (PerformancePointProjectionRepository.EmployeePerformancePointTotalView totalView : performancePointProjectionRepository.findEmployeePointTotals()) {
+        for (EmployeePerformancePointTotalRow totalView : performancePointQueryMapper.findEmployeePointTotals()) {
             BigDecimal promotionPoint = totalView.getTotalPoint() == null
                 ? BigDecimal.ZERO
                 : totalView.getTotalPoint()
@@ -85,7 +86,7 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
             accumulatedPoints.put(totalView.getEmployeeId(), promotionPoint);
         }
 
-        Set<Long> pendingEmployeeIds = new HashSet<>(promotionHistoryProjectionRepository.findPendingEmployeeIds(PENDING_STATUSES));
+        Set<Long> pendingEmployeeIds = new HashSet<>(promotionHistoryQueryMapper.findPendingEmployeeIds(PENDING_STATUSES));
         Long evaluationPeriodId = evaluationPeriod.getEvaluationPeriodId();
         LocalDate effectiveDate = evaluationPeriod.getEndDate();
         LocalDateTime occurredAt = LocalDateTime.now();

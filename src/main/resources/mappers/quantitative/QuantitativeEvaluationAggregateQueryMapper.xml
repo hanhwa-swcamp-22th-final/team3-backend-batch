@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.QuantitativeEvaluationAggregateQueryMapper">
+
+    <select id="findAverageScoresByEvaluationPeriodIdAndStatusIn"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.MonthlyQuantitativeScoreRow">
+        SELECT
+            q.employee_id AS employeeId,
+            AVG(q.t_score) AS averageTScore,
+            AVG(q.uph_score) AS averageProductivityScore,
+            AVG(q.yield_score) AS averageQualityScore,
+            AVG(q.lead_time_score) AS averageEquipmentResponseScore
+        FROM quantitative_evaluation q
+        WHERE q.evaluation_period_id = #{evaluationPeriodId}
+          AND q.status IN
+          <foreach collection="statuses" item="status" open="(" separator="," close=")">
+              #{status}
+          </foreach>
+          AND q.t_score IS NOT NULL
+        GROUP BY q.employee_id
+        ORDER BY q.employee_id
+    </select>
+
+    <select id="findAverageMonthlySettledScoresByPeriodRange"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.MonthlyQuantitativeScoreRow">
+        SELECT
+            q.employee_id AS employeeId,
+            AVG(q.t_score) AS averageTScore,
+            AVG(q.uph_score) AS averageProductivityScore,
+            AVG(q.yield_score) AS averageQualityScore,
+            AVG(q.lead_time_score) AS averageEquipmentResponseScore
+        FROM quantitative_evaluation q
+        JOIN batch_projection.evaluation_period_projection ep
+          ON ep.evaluation_period_id = q.evaluation_period_id
+        WHERE ep.status = 'CONFIRMED'
+          AND DATEDIFF(ep.end_date, ep.start_date) + 1 BETWEEN 28 AND 31
+          AND ep.start_date &gt;= #{startDate}
+          AND ep.end_date &lt;= #{endDate}
+          AND q.status = 'CONFIRMED'
+          AND q.t_score IS NOT NULL
+        GROUP BY q.employee_id
+        ORDER BY q.employee_id
+    </select>
+
+    <select id="findMonthlySettledInspectionRowsByPeriodRange"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.MonthlyQuantitativeInspectionRow">
+        SELECT
+            q.employee_id AS employeeId,
+            q.evaluation_period_id AS evaluationPeriodId,
+            q.t_score AS tScore
+        FROM quantitative_evaluation q
+        JOIN batch_projection.evaluation_period_projection ep
+          ON ep.evaluation_period_id = q.evaluation_period_id
+        WHERE ep.status = 'CONFIRMED'
+          AND DATEDIFF(ep.end_date, ep.start_date) + 1 BETWEEN 28 AND 31
+          AND ep.start_date &gt;= #{startDate}
+          AND ep.end_date &lt;= #{endDate}
+          AND q.status = 'CONFIRMED'
+          AND q.t_score IS NOT NULL
+        ORDER BY q.employee_id, q.evaluation_period_id
+    </select>
+</mapper>

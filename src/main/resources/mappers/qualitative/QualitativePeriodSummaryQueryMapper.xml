@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativePeriodSummaryQueryMapper">
+
+    <select id="findSummaryCandidates"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativePeriodSummaryCandidateRow">
+        SELECT
+            #{evaluationPeriodId} AS evaluationPeriodId,
+            selected.evaluatee_id AS evaluateeId,
+            COUNT(*) AS sourceMonthCount,
+            COALESCE(AVG(selected.raw_score), 0) AS averageRawScore,
+            COALESCE(AVG(selected.normalized_score), 0) AS averageNormalizedScore
+        FROM batch_projection.qualitative_score_projection selected
+        JOIN (
+            SELECT
+                qsp.evaluation_period_id AS evaluationPeriodId,
+                qsp.evaluatee_id AS evaluateeId,
+                MAX(qsp.evaluation_level) AS latestEvaluationLevel
+            FROM batch_projection.qualitative_score_projection qsp
+            JOIN evaluation_period source_ep
+              ON source_ep.eval_period_id = qsp.evaluation_period_id
+            JOIN evaluation_period target_ep
+              ON target_ep.eval_period_id = #{evaluationPeriodId}
+            WHERE qsp.normalized_score IS NOT NULL
+              AND qsp.evaluation_period_id &lt;&gt; #{evaluationPeriodId}
+              AND source_ep.start_date &gt;= target_ep.start_date
+              AND source_ep.end_date &lt;= target_ep.end_date
+              AND TIMESTAMPDIFF(MONTH, source_ep.start_date, source_ep.end_date) = 0
+              <if test="employeeId != null">
+                  AND qsp.evaluatee_id = #{employeeId}
+              </if>
+            GROUP BY qsp.evaluation_period_id, qsp.evaluatee_id
+        ) latest
+          ON latest.evaluationPeriodId = selected.evaluation_period_id
+         AND latest.evaluateeId = selected.evaluatee_id
+         AND latest.latestEvaluationLevel = selected.evaluation_level
+        GROUP BY selected.evaluatee_id
+        ORDER BY selected.evaluatee_id
+    </select>
+</mapper>

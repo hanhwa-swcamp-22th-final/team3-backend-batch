@@ -2,13 +2,17 @@ package com.ohgiraffers.team3backendbatch.batch.job.periodinspection.reader;
 
 import com.ohgiraffers.team3backendbatch.api.command.dto.BatchPeriodType;
 import com.ohgiraffers.team3backendbatch.batch.job.periodinspection.model.PeriodSettlementInspectionTarget;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.repository.PerformancePointProjectionRepository;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeScoreProjectionRepository;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.mapper.PerformancePointQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.MonthlyQualitativeInspectionRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativeScoreQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.EmployeeProjectionEntity;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.EvaluationPeriodProjectionEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodProjectionRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.MonthlyQuantitativeInspectionRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.QuantitativeEvaluationAggregateQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EmployeeProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EvaluationPeriodProjectionRepository;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.QuantitativeEvaluationRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
@@ -31,10 +35,11 @@ import org.springframework.stereotype.Component;
 public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettlementInspectionTarget> {
 
     private final EvaluationPeriodProjectionRepository evaluationPeriodProjectionRepository;
+    private final EvaluationPeriodQueryMapper evaluationPeriodQueryMapper;
     private final EmployeeProjectionRepository employeeProjectionRepository;
-    private final QuantitativeEvaluationRepository quantitativeEvaluationRepository;
-    private final QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository;
-    private final PerformancePointProjectionRepository performancePointProjectionRepository;
+    private final QuantitativeEvaluationAggregateQueryMapper quantitativeEvaluationAggregateQueryMapper;
+    private final QualitativeScoreQueryMapper qualitativeScoreQueryMapper;
+    private final PerformancePointQueryMapper performancePointQueryMapper;
 
     @Value("#{jobParameters['evaluationPeriodId']}")
     private Long requestedEvaluationPeriodId;
@@ -61,7 +66,7 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
             return List.of();
         }
 
-        EvaluationPeriodProjectionEntity targetPeriod = resolveTargetPeriod(periodType).orElse(null);
+        EvaluationPeriodProjectionRow targetPeriod = resolveTargetPeriod(periodType).orElse(null);
         if (targetPeriod == null) {
             log.info("Skipping period settlement inspection. No confirmed target period found. periodType={}, requestedEvaluationPeriodId={}", periodType, requestedEvaluationPeriodId);
             return List.of();
@@ -69,7 +74,7 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
 
         LocalDate startDate = targetPeriod.getStartDate();
         LocalDate endDate = targetPeriod.getEndDate();
-        List<EvaluationPeriodProjectionEntity> monthlyPeriods = evaluationPeriodProjectionRepository.findConfirmedMonthlyPeriodsWithin(startDate, endDate);
+        List<EvaluationPeriodProjectionRow> monthlyPeriods = evaluationPeriodQueryMapper.findConfirmedMonthlyPeriodsWithin(startDate, endDate);
         int expectedMonthCount = monthlyPeriods.size();
 
         if (expectedMonthCount == 0) {
@@ -79,7 +84,7 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
 
         Map<Long, ScoreStats> quantitativeStats = buildQuantitativeStats(startDate, endDate);
         Map<Long, ScoreStats> qualitativeStats = buildQualitativeStats(startDate, endDate);
-        Map<Long, BigDecimal> performancePointTotals = performancePointProjectionRepository
+        Map<Long, BigDecimal> performancePointTotals = performancePointQueryMapper
             .findEmployeePointTotalsByEarnedDateBetween(startDate, endDate)
             .stream()
             .collect(LinkedHashMap::new, (map, view) -> map.put(view.getEmployeeId(), safe(view.getTotalPoint())), LinkedHashMap::putAll);
@@ -131,8 +136,8 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
 
     private Map<Long, ScoreStats> buildQuantitativeStats(LocalDate startDate, LocalDate endDate) {
         Map<Long, ScoreStatsAccumulator> accumulators = new LinkedHashMap<>();
-        for (QuantitativeEvaluationRepository.MonthlyQuantitativeInspectionRow row
-            : quantitativeEvaluationRepository.findMonthlySettledInspectionRowsByPeriodRange(startDate, endDate)) {
+        for (MonthlyQuantitativeInspectionRow row
+            : quantitativeEvaluationAggregateQueryMapper.findMonthlySettledInspectionRowsByPeriodRange(startDate, endDate)) {
             if (row.getEmployeeId() == null || row.getTScore() == null) {
                 continue;
             }
@@ -143,8 +148,8 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
 
     private Map<Long, ScoreStats> buildQualitativeStats(LocalDate startDate, LocalDate endDate) {
         Map<Long, ScoreStatsAccumulator> accumulators = new LinkedHashMap<>();
-        for (QualitativeScoreProjectionRepository.MonthlyQualitativeInspectionRow row
-            : qualitativeScoreProjectionRepository.findMonthlyNormalizedInspectionRowsByPeriodRange(startDate, endDate)) {
+        for (MonthlyQualitativeInspectionRow row
+            : qualitativeScoreQueryMapper.findMonthlyNormalizedInspectionRowsByPeriodRange(startDate, endDate)) {
             if (row.getEmployeeId() == null || row.getNormalizedScore() == null) {
                 continue;
             }
@@ -159,11 +164,11 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
         return result;
     }
 
-    private java.util.Optional<EvaluationPeriodProjectionEntity> resolveTargetPeriod(BatchPeriodType periodType) {
+    private java.util.Optional<EvaluationPeriodProjectionRow> resolveTargetPeriod(BatchPeriodType periodType) {
         if (requestedEvaluationPeriodId != null) {
-            return evaluationPeriodProjectionRepository.findById(requestedEvaluationPeriodId);
+            return evaluationPeriodProjectionRepository.findById(requestedEvaluationPeriodId).map(this::toPeriodRow);
         }
-        return evaluationPeriodProjectionRepository.findLatestConfirmedPeriod(periodType);
+        return evaluationPeriodQueryMapper.findLatestConfirmedPeriod(periodType);
     }
 
     private BatchPeriodType parsePeriodType(String value) {
@@ -188,6 +193,21 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
 
     private BigDecimal safe(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private EvaluationPeriodProjectionRow toPeriodRow(EvaluationPeriodProjectionEntity entity) {
+        EvaluationPeriodProjectionRow row = new EvaluationPeriodProjectionRow();
+        row.setEvaluationPeriodId(entity.getEvaluationPeriodId());
+        row.setAlgorithmVersionId(entity.getAlgorithmVersionId());
+        row.setEvaluationYear(entity.getEvaluationYear());
+        row.setEvaluationSequence(entity.getEvaluationSequence());
+        row.setStartDate(entity.getStartDate());
+        row.setEndDate(entity.getEndDate());
+        row.setStatus(entity.getStatus());
+        row.setPolicyConfig(entity.getPolicyConfig());
+        row.setParameters(entity.getParameters());
+        row.setReferenceValues(entity.getReferenceValues());
+        return row;
     }
 
     private record ScoreStats(int count, BigDecimal min, BigDecimal max) {

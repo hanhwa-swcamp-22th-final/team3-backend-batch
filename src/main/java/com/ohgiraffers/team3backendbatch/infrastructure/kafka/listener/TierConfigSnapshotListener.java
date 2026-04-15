@@ -33,6 +33,8 @@ public class TierConfigSnapshotListener {
                     event.getTier(),
                     event.getWeightDistribution(),
                     event.getPromotionPoint(),
+                    event.getActive(),
+                    event.getDeleted(),
                     occurredAt,
                     now
                 );
@@ -43,16 +45,20 @@ public class TierConfigSnapshotListener {
                 event.getTier(),
                 event.getWeightDistribution(),
                 event.getPromotionPoint(),
+                event.getActive(),
+                event.getDeleted(),
                 occurredAt,
                 now
             ));
 
         repository.save(projection);
         log.info(
-            "Upserted tier config projection. tierConfigId={}, tier={}, promotionPoint={}",
+            "Upserted tier config projection. tierConfigId={}, tier={}, promotionPoint={}, active={}, deleted={}",
             event.getTierConfigId(),
             event.getTier(),
-            event.getPromotionPoint()
+            event.getPromotionPoint(),
+            event.getActive(),
+            event.getDeleted()
         );
     }
 }

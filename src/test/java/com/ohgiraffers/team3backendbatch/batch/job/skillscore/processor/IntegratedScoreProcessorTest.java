@@ -93,4 +93,62 @@ class IntegratedScoreProcessorTest {
         assertThat(result.getQuantitativePoint()).isNull();
         assertThat(result.getQualitativePoint()).isNull();
     }
+
+    @Test
+    @DisplayName("configured evaluation weights adjust performance points only")
+    void processAppliesConfiguredWeightsToPerformancePointsOnly() {
+        Map<String, BigDecimal> qualitativeSkillScores = new LinkedHashMap<>();
+        qualitativeSkillScores.put("PRODUCTIVITY", new BigDecimal("70.00"));
+        qualitativeSkillScores.put("QUALITY_MANAGEMENT", new BigDecimal("82.00"));
+
+        Map<String, Integer> evaluationCategoryWeights = new LinkedHashMap<>();
+        evaluationCategoryWeights.put("PRODUCTIVITY", 20);
+        evaluationCategoryWeights.put("EQUIPMENT_RESPONSE", 20);
+        evaluationCategoryWeights.put("PROCESS_INNOVATION", 30);
+        evaluationCategoryWeights.put("KNOWLEDGE_SHARING", 20);
+
+        IntegratedScoreAggregate baselineAggregate = IntegratedScoreAggregate.builder()
+            .employeeId(202L)
+            .employeeTier("B")
+            .evaluationPeriodId(202605L)
+            .periodType(BatchPeriodType.MONTH)
+            .pointEarnedDate(LocalDate.of(2026, 5, 31))
+            .occurredAt(LocalDateTime.of(2026, 5, 31, 23, 59))
+            .quantitativeTScore(new BigDecimal("60.00"))
+            .quantitativeProductivityScore(new BigDecimal("72.00"))
+            .quantitativeQualityScore(new BigDecimal("78.00"))
+            .quantitativeEquipmentResponseScore(new BigDecimal("68.00"))
+            .qualitativeScore(new BigDecimal("80.00"))
+            .qualitativeSkillScores(qualitativeSkillScores)
+            .kmsApprovedArticleCount(1)
+            .challengeTaskCount(1)
+            .performancePointEvents(List.of())
+            .build();
+
+        IntegratedScoreAggregate weightedAggregate = baselineAggregate.toBuilder()
+            .evaluationCategoryWeights(evaluationCategoryWeights)
+            .build();
+
+        IntegratedScoreAggregate baselineResult = integratedScoreProcessor.process(baselineAggregate);
+        IntegratedScoreAggregate result = integratedScoreProcessor.process(weightedAggregate);
+
+        assertThat(result).isNotNull();
+        assertThat(baselineResult).isNotNull();
+        assertThat(baselineResult.getQuantitativePoint()).isEqualTo(3600);
+        assertThat(baselineResult.getQualitativePoint()).isEqualTo(4800);
+        assertThat(result.getQuantitativePoint()).isEqualTo(1800);
+        assertThat(result.getQualitativePoint()).isEqualTo(14400);
+        assertThat(result.getPerformancePointEvents()).extracting("pointType")
+            .containsExactly("QUANTITY", "QUALITATIVE", "KNOWLEDGE_SHARING", "CHALLENGE");
+        assertThat(result.getPerformancePointEvents().get(2).getPointAmount()).isEqualByComparingTo("8000");
+        assertThat(result.getPerformancePointEvents().get(3).getPointAmount()).isEqualByComparingTo("3000");
+        assertThat(result.getSkillGrowthEvents()).hasSameSizeAs(baselineResult.getSkillGrowthEvents());
+        assertThat(result.getSkillGrowthEvents())
+            .extracting(event -> event.getSkillCategory() + ":" + event.getSkillContributionScore())
+            .containsExactlyElementsOf(
+                baselineResult.getSkillGrowthEvents().stream()
+                    .map(event -> event.getSkillCategory() + ":" + event.getSkillContributionScore())
+                    .toList()
+            );
+    }
 }

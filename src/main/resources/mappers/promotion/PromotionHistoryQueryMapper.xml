@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.mapper.PromotionHistoryQueryMapper">
+
+    <select id="findPendingEmployeeIds" resultType="java.lang.Long">
+        SELECT DISTINCT p.employee_id
+        FROM batch_projection.promotion_history_projection p
+        WHERE p.tier_promo_status IN
+        <foreach collection="statuses" item="status" open="(" separator="," close=")">
+            #{status}
+        </foreach>
+    </select>
+</mapper>

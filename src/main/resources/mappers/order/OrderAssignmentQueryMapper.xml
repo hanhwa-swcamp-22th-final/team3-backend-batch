@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.order.mapper.OrderAssignmentQueryMapper">
+
+    <select id="findChallengeCountsByAssignedAtBetween"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.order.mapper.EmployeeChallengeCountRow">
+        SELECT
+            oa.employee_id AS employeeId,
+            COUNT(*) AS challengeCount
+        FROM batch_projection.order_assignment_projection oa
+        JOIN batch_projection.order_difficulty_projection od
+          ON od.order_id = oa.order_id
+        WHERE oa.employee_id IS NOT NULL
+          AND oa.assigned_at &gt;= #{startAt}
+          AND oa.assigned_at &lt; #{endExclusive}
+          AND COALESCE(oa.matching_status, '') &lt;&gt; 'CANCELLED'
+          AND od.difficulty_grade IN ('D4', 'D5')
+        GROUP BY oa.employee_id
+        ORDER BY oa.employee_id
+    </select>
+</mapper>
