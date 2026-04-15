@@ -293,7 +293,6 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
             .evaluationCategoryWeights(evaluationCategoryWeights)
             .kmsApprovedArticleCount(kmsApprovedArticleCount)
             .challengeTaskCount(challengeTaskCount)
-            .missionProgressEvents(List.of())
             .performancePointEvents(List.of())
             .build();
     }

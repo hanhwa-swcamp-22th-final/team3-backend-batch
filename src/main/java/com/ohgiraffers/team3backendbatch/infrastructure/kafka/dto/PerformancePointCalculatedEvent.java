@@ -23,5 +23,6 @@ public class PerformancePointCalculatedEvent {
     private Long pointSourceId;
     private String pointSourceType;
     private String pointDescription;
+    private BigDecimal capabilityScore;
     private LocalDateTime occurredAt;
 }
