@@ -59,17 +59,27 @@ public class IntegratedScoreProcessor
                 BigDecimal.valueOf(quantitativePoint),
                 tierAwareKpiScoreCalculator.isStrategicTier(item.getEmployeeTier())
                     ? "Strategic-tier quantitative KPI settlement contribution"
-                    : "Monthly quantitative settlement contribution"
+                    : "Monthly quantitative settlement contribution",
+                item.getQualitativeScore() == null
+                    ? resolveCapabilityScore(quantitativeBaseScore, item.getQualitativeScore())
+                    : null
             ));
         }
 
+        BigDecimal capabilityScore = resolveCapabilityScore(quantitativeBaseScore, item.getQualitativeScore());
         if (officialSettlement && item.getQualitativeScore() != null) {
             qualitativePoint = applyEvaluationWeightToPoint(
                 item,
                 QUALITATIVE_POINT_TYPE,
                 performancePointCalculator.percentageToContributionPoint(item.getQualitativeScore())
             );
-            events.add(buildEvent(item, QUALITATIVE_POINT_TYPE, BigDecimal.valueOf(qualitativePoint), "Monthly qualitative settlement contribution"));
+            events.add(buildEvent(
+                item,
+                QUALITATIVE_POINT_TYPE,
+                BigDecimal.valueOf(qualitativePoint),
+                "Monthly qualitative settlement contribution",
+                capabilityScore
+            ));
         }
 
         if (officialSettlement) {
@@ -83,7 +93,8 @@ public class IntegratedScoreProcessor
                     item,
                     KNOWLEDGE_SHARING_POINT_TYPE,
                     BigDecimal.valueOf(kmsPoint),
-                    "Monthly KMS approved article contribution"
+                    "Monthly KMS approved article contribution",
+                    null
                 ));
             }
 
@@ -93,7 +104,8 @@ public class IntegratedScoreProcessor
                     item,
                     CHALLENGE_POINT_TYPE,
                     BigDecimal.valueOf(challengePoint),
-                    "Monthly high-difficulty work contribution"
+                    "Monthly high-difficulty work contribution",
+                    null
                 ));
             }
 
@@ -115,11 +127,22 @@ public class IntegratedScoreProcessor
         return item.withCalculatedResults(quantitativePoint, qualitativePoint, events, skillGrowthEvents);
     }
 
+    private BigDecimal resolveCapabilityScore(BigDecimal quantitativeBaseScore, BigDecimal qualitativeScore) {
+        if (quantitativeBaseScore == null) {
+            return qualitativeScore;
+        }
+        if (qualitativeScore == null) {
+            return quantitativeBaseScore;
+        }
+        return quantitativeBaseScore.add(qualitativeScore).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
+    }
+
     private PerformancePointCalculatedEvent buildEvent(
         IntegratedScoreAggregate item,
         String pointType,
         BigDecimal pointAmount,
-        String description
+        String description,
+        BigDecimal capabilityScore
     ) {
         return PerformancePointCalculatedEvent.builder()
             .employeeId(item.getEmployeeId())
@@ -131,6 +154,7 @@ public class IntegratedScoreProcessor
             .pointSourceId(item.getEvaluationPeriodId())
             .pointSourceType(POINT_SOURCE_TYPE)
             .pointDescription(description)
+            .capabilityScore(capabilityScore)
             .occurredAt(item.getOccurredAt())
             .build();
     }
