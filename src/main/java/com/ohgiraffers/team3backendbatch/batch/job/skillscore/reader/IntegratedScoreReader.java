@@ -7,17 +7,24 @@ import com.ohgiraffers.team3backendbatch.batch.job.skillscore.model.IntegratedSc
 import com.ohgiraffers.team3backendbatch.domain.qualitative.model.MatchedKeywordDetail;
 import com.ohgiraffers.team3backendbatch.domain.scoring.QualitativeSkillKeywordClassifier;
 import com.ohgiraffers.team3backendbatch.infrastructure.kafka.dto.MatchedKeywordDetailEvent;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.kms.repository.KmsArticleProjectionRepository;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.order.repository.OrderAssignmentProjectionRepository;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.kms.mapper.KmsApprovedArticleCountRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.kms.mapper.KmsArticleQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.order.mapper.EmployeeChallengeCountRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.order.mapper.OrderAssignmentQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.entity.EvaluationWeightConfigProjectionEntity;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.promotion.repository.EvaluationWeightConfigProjectionRepository;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.EvaluationCommentRepository;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.repository.QualitativeScoreProjectionRepository;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.EvaluationCommentQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.MonthlyMatchedKeywordRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.MonthlyQualitativeScoreRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativeScoreQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.EmployeeProjectionEntity;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.entity.EvaluationPeriodProjectionEntity;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodProjectionRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.EvaluationPeriodQueryMapper;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.MonthlyQuantitativeScoreRow;
+import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.QuantitativeEvaluationAggregateQueryMapper;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EmployeeProjectionRepository;
 import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.EvaluationPeriodProjectionRepository;
-import com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.repository.QuantitativeEvaluationRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,12 +54,13 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
     private static final Logger log = LoggerFactory.getLogger(IntegratedScoreReader.class);
 
     private final EvaluationPeriodProjectionRepository evaluationPeriodProjectionRepository;
+    private final EvaluationPeriodQueryMapper evaluationPeriodQueryMapper;
     private final EmployeeProjectionRepository employeeProjectionRepository;
-    private final QuantitativeEvaluationRepository quantitativeEvaluationRepository;
-    private final QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository;
-    private final EvaluationCommentRepository evaluationCommentRepository;
-    private final OrderAssignmentProjectionRepository orderAssignmentProjectionRepository;
-    private final KmsArticleProjectionRepository kmsArticleProjectionRepository;
+    private final QuantitativeEvaluationAggregateQueryMapper quantitativeEvaluationAggregateQueryMapper;
+    private final QualitativeScoreQueryMapper qualitativeScoreQueryMapper;
+    private final EvaluationCommentQueryMapper evaluationCommentQueryMapper;
+    private final OrderAssignmentQueryMapper orderAssignmentQueryMapper;
+    private final KmsArticleQueryMapper kmsArticleQueryMapper;
     private final EvaluationWeightConfigProjectionRepository evaluationWeightConfigProjectionRepository;
     private final QualitativeSkillKeywordClassifier qualitativeSkillKeywordClassifier;
     private final ObjectMapper objectMapper;
@@ -83,7 +91,7 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
             return List.of();
         }
 
-        EvaluationPeriodProjectionEntity evaluationPeriod = resolveEvaluationPeriod(periodType).orElse(null);
+        EvaluationPeriodProjectionRow evaluationPeriod = resolveEvaluationPeriod(periodType).orElse(null);
 
         if (evaluationPeriod == null) {
             log.info("Skipping score aggregation. No confirmed evaluation period was found. periodType={}, requestedEvaluationPeriodId={}", periodType, requestedEvaluationPeriodId);
@@ -96,20 +104,20 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         LocalDate pointEarnedDate = endDate;
         LocalDateTime occurredAt = LocalDateTime.now();
 
-        Map<Long, QuantitativeEvaluationRepository.MonthlyQuantitativeScoreView> quantitativeScores = loadQuantitativeScores(
+        Map<Long, MonthlyQuantitativeScoreRow> quantitativeScores = loadQuantitativeScores(
             evaluationPeriodId
         );
         Map<Long, BigDecimal> qualitativeScores = loadQualitativeScores(evaluationPeriodId);
         Map<Long, Map<String, BigDecimal>> qualitativeSkillScores = buildQualitativeSkillScores(evaluationPeriodId, qualitativeScores);
         Map<String, Map<String, Integer>> evaluationCategoryWeightsByTierGroup = loadEvaluationCategoryWeights();
         Map<Long, Integer> kmsApprovedArticleCounts = loadKmsApprovedArticleCounts(startDate, endDate);
-        Map<Long, Integer> challengeCounts = orderAssignmentProjectionRepository.findChallengeCountsByAssignedAtBetween(
+        Map<Long, Integer> challengeCounts = orderAssignmentQueryMapper.findChallengeCountsByAssignedAtBetween(
                 startDate.atStartOfDay(),
                 endDate.plusDays(1).atStartOfDay()
             )
             .stream()
             .collect(Collectors.toMap(
-                OrderAssignmentProjectionRepository.EmployeeChallengeCountView::getEmployeeId,
+                EmployeeChallengeCountRow::getEmployeeId,
                 view -> view.getChallengeCount() == null ? 0 : view.getChallengeCount()
             ));
 
@@ -145,15 +153,16 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return items;
     }
 
-    private Optional<EvaluationPeriodProjectionEntity> resolveEvaluationPeriod(BatchPeriodType periodType) {
+    private Optional<EvaluationPeriodProjectionRow> resolveEvaluationPeriod(BatchPeriodType periodType) {
         if (requestedEvaluationPeriodId != null) {
             return evaluationPeriodProjectionRepository.findById(requestedEvaluationPeriodId)
+                .map(this::toPeriodRow)
                 .map(this::validateEvaluationPeriod);
         }
-        return evaluationPeriodProjectionRepository.findLatestConfirmedPeriod(periodType);
+        return evaluationPeriodQueryMapper.findLatestConfirmedPeriod(periodType);
     }
 
-    private EvaluationPeriodProjectionEntity validateEvaluationPeriod(EvaluationPeriodProjectionEntity period) {
+    private EvaluationPeriodProjectionRow validateEvaluationPeriod(EvaluationPeriodProjectionRow period) {
         if (!"CONFIRMED".equalsIgnoreCase(period.getStatus())) {
             throw new IllegalStateException(
                 "Requested evaluation period is not confirmed. evaluationPeriodId="
@@ -165,39 +174,39 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return period;
     }
 
-    private Map<Long, QuantitativeEvaluationRepository.MonthlyQuantitativeScoreView> loadQuantitativeScores(
+    private Map<Long, MonthlyQuantitativeScoreRow> loadQuantitativeScores(
         Long evaluationPeriodId
     ) {
-        List<QuantitativeEvaluationRepository.MonthlyQuantitativeScoreView> values =
-            quantitativeEvaluationRepository.findAverageScoresByEvaluationPeriodIdAndStatusIn(
+        List<MonthlyQuantitativeScoreRow> values =
+            quantitativeEvaluationAggregateQueryMapper.findAverageScoresByEvaluationPeriodIdAndStatusIn(
                 evaluationPeriodId,
                 resolveQuantitativeStatuses()
             );
 
         return values.stream().collect(Collectors.toMap(
-            QuantitativeEvaluationRepository.MonthlyQuantitativeScoreView::getEmployeeId,
+            MonthlyQuantitativeScoreRow::getEmployeeId,
             view -> view
         ));
     }
 
     private Map<Long, BigDecimal> loadQualitativeScores(Long evaluationPeriodId) {
-        List<QualitativeScoreProjectionRepository.MonthlyQualitativeScoreView> values =
-            qualitativeScoreProjectionRepository.findLatestNormalizedScoresByEvaluationPeriodId(evaluationPeriodId);
+        List<MonthlyQualitativeScoreRow> values =
+            qualitativeScoreQueryMapper.findLatestNormalizedScoresByEvaluationPeriodId(evaluationPeriodId);
 
         return values.stream().collect(Collectors.toMap(
-            QualitativeScoreProjectionRepository.MonthlyQualitativeScoreView::getEmployeeId,
-            QualitativeScoreProjectionRepository.MonthlyQualitativeScoreView::getNormalizedScore
+            MonthlyQualitativeScoreRow::getEmployeeId,
+            MonthlyQualitativeScoreRow::getNormalizedScore
         ));
     }
 
     private Map<Long, Integer> loadKmsApprovedArticleCounts(LocalDate startDate, LocalDate endDate) {
-        return kmsArticleProjectionRepository.findApprovedArticleCountsByApprovedAtBetween(
+        return kmsArticleQueryMapper.findApprovedArticleCountsByApprovedAtBetween(
                 startDate.atStartOfDay(),
                 endDate.plusDays(1).atStartOfDay()
             )
             .stream()
             .collect(Collectors.toMap(
-                KmsArticleProjectionRepository.EmployeeApprovedArticleCountView::getEmployeeId,
+                KmsApprovedArticleCountRow::getEmployeeId,
                 view -> view.getApprovedArticleCount() == null ? 0 : view.getApprovedArticleCount().intValue()
             ));
     }
@@ -208,10 +217,10 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
     ) {
         Map<Long, List<MatchedKeywordDetail>> matchedKeywordDetailsByEmployee = new LinkedHashMap<>();
 
-        List<EvaluationCommentRepository.MonthlyMatchedKeywordView> keywordViews =
-            evaluationCommentRepository.findMatchedKeywordsByEvaluationPeriodId(evaluationPeriodId);
+        List<MonthlyMatchedKeywordRow> keywordViews =
+            evaluationCommentQueryMapper.findMatchedKeywordsByEvaluationPeriodId(evaluationPeriodId);
 
-        for (EvaluationCommentRepository.MonthlyMatchedKeywordView view : keywordViews) {
+        for (MonthlyMatchedKeywordRow view : keywordViews) {
             if (view.getEmployeeId() == null) {
                 continue;
             }
@@ -239,14 +248,14 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         BatchPeriodType periodType,
         LocalDate pointEarnedDate,
         LocalDateTime occurredAt,
-        Map<Long, QuantitativeEvaluationRepository.MonthlyQuantitativeScoreView> quantitativeScores,
+        Map<Long, MonthlyQuantitativeScoreRow> quantitativeScores,
         Map<Long, BigDecimal> qualitativeScores,
         Map<Long, Map<String, BigDecimal>> qualitativeSkillScores,
         Map<String, Map<String, Integer>> evaluationCategoryWeightsByTierGroup,
         Map<Long, Integer> kmsApprovedArticleCounts,
         Map<Long, Integer> challengeCounts
     ) {
-        QuantitativeEvaluationRepository.MonthlyQuantitativeScoreView quantitativeView = quantitativeScores.get(employee.getEmployeeId());
+        MonthlyQuantitativeScoreRow quantitativeView = quantitativeScores.get(employee.getEmployeeId());
         BigDecimal quantitativeTScore = quantitativeView == null ? null : quantitativeView.getAverageTScore();
         BigDecimal quantitativeProductivityScore = quantitativeView == null ? null : quantitativeView.getAverageProductivityScore();
         BigDecimal quantitativeQualityScore = quantitativeView == null ? null : quantitativeView.getAverageQualityScore();
@@ -351,6 +360,21 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
 
     private Collection<String> resolveQuantitativeStatuses() {
         return List.of("CONFIRMED");
+    }
+
+    private EvaluationPeriodProjectionRow toPeriodRow(EvaluationPeriodProjectionEntity entity) {
+        EvaluationPeriodProjectionRow row = new EvaluationPeriodProjectionRow();
+        row.setEvaluationPeriodId(entity.getEvaluationPeriodId());
+        row.setAlgorithmVersionId(entity.getAlgorithmVersionId());
+        row.setEvaluationYear(entity.getEvaluationYear());
+        row.setEvaluationSequence(entity.getEvaluationSequence());
+        row.setStartDate(entity.getStartDate());
+        row.setEndDate(entity.getEndDate());
+        row.setStatus(entity.getStatus());
+        row.setPolicyConfig(entity.getPolicyConfig());
+        row.setParameters(entity.getParameters());
+        row.setReferenceValues(entity.getReferenceValues());
+        return row;
     }
 
     private BatchPeriodType parsePeriodType(String value) {
