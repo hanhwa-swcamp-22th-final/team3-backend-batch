@@ -70,6 +70,15 @@ batch:
     score-cron: ${BATCH_SCHEDULE_SCORE_CRON:0 30 1 * * *}
     promotion-cron: ${BATCH_SCHEDULE_PROMOTION_CRON:0 0 2 * * *}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
 nlp:
   google:
     credentials-location: ${NLP_GOOGLE_CREDENTIALS_LOCATION:classpath:gcp-key.json}
