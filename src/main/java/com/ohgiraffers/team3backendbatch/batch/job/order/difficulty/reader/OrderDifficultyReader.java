@@ -23,6 +23,12 @@ public class OrderDifficultyReader implements ItemReader<OrderDifficultySource> 
     private final String analysisReferenceDate;
     private boolean consumed;
 
+    /**
+     * 주문 난이도 분석 Reader 를 생성한다.
+     * @param objectMapper JSON 역직렬화 객체
+     * @param orderEventPayload 주문 등록 이벤트 payload
+     * @param analysisReferenceDate 분석 기준일 문자열
+     */
     public OrderDifficultyReader(
         ObjectMapper objectMapper,
         @Value("#{jobParameters['orderEventPayload']}") String orderEventPayload,
@@ -33,6 +39,11 @@ public class OrderDifficultyReader implements ItemReader<OrderDifficultySource> 
         this.analysisReferenceDate = analysisReferenceDate;
     }
 
+    /**
+     * 주문 난이도 분석 원천 데이터를 한 건 반환한다.
+     * @param 없음
+     * @return 주문 난이도 분석 원천 데이터
+     */
     @Override
     public OrderDifficultySource read() {
         if (consumed) {
@@ -62,6 +73,11 @@ public class OrderDifficultyReader implements ItemReader<OrderDifficultySource> 
         return source;
     }
 
+    /**
+     * 주문 등록 이벤트 payload 를 역직렬화한다.
+     * @param 없음
+     * @return 주문 등록 이벤트
+     */
     private OrderRegisteredEvent deserializePayload() {
         try {
             return objectMapper.readValue(orderEventPayload, OrderRegisteredEvent.class);
@@ -70,6 +86,12 @@ public class OrderDifficultyReader implements ItemReader<OrderDifficultySource> 
         }
     }
 
+    /**
+     * 주문 등록 이벤트를 난이도 분석 원천 객체로 변환한다.
+     * @param event 주문 등록 이벤트
+     * @param referenceDate 분석 기준일
+     * @return 주문 난이도 분석 원천 객체
+     */
     private OrderDifficultySource toSource(OrderRegisteredEvent event, LocalDate referenceDate) {
         OrderDifficultySource source = new OrderDifficultySource();
         source.setOrderId(event.getOrderId());
@@ -94,6 +116,11 @@ public class OrderDifficultyReader implements ItemReader<OrderDifficultySource> 
         return source;
     }
 
+    /**
+     * 분석 기준일 문자열을 LocalDate 로 변환한다.
+     * @param value 분석 기준일 문자열
+     * @return 변환된 기준일
+     */
     private LocalDate parseReferenceDate(String value) {
         if (value == null || value.isBlank()) {
             return null;

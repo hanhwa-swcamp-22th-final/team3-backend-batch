@@ -74,6 +74,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
     private Iterator<IntegratedScoreAggregate> iterator = Collections.emptyIterator();
     private boolean initialized;
 
+    /**
+     * 통합 점수 집계 대상을 한 건씩 반환한다.
+     * @param 없음
+     * @return 통합 점수 집계 대상 데이터
+     */
     @Override
     public IntegratedScoreAggregate read() {
         if (!initialized) {
@@ -84,6 +89,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return iterator.hasNext() ? iterator.next() : null;
     }
 
+    /**
+     * 통합 점수 집계 대상 목록을 생성한다.
+     * @param 없음
+     * @return 통합 점수 집계 대상 목록
+     */
     private List<IntegratedScoreAggregate> loadItems() {
         BatchPeriodType periodType = parsePeriodType(requestedPeriodType);
         if (periodType != BatchPeriodType.MONTH) {
@@ -153,6 +163,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return items;
     }
 
+    /**
+     * 집계 대상 평가 기간을 조회한다.
+     * @param periodType 평가 기간 유형
+     * @return 평가 기간 조회 결과
+     */
     private Optional<EvaluationPeriodProjectionRow> resolveEvaluationPeriod(BatchPeriodType periodType) {
         if (requestedEvaluationPeriodId != null) {
             return evaluationPeriodProjectionRepository.findById(requestedEvaluationPeriodId)
@@ -162,6 +177,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return evaluationPeriodQueryMapper.findLatestConfirmedPeriod(periodType);
     }
 
+    /**
+     * 요청된 평가 기간이 확정 상태인지 검증한다.
+     * @param period 평가 기간 정보
+     * @return 검증된 평가 기간 정보
+     */
     private EvaluationPeriodProjectionRow validateEvaluationPeriod(EvaluationPeriodProjectionRow period) {
         if (!"CONFIRMED".equalsIgnoreCase(period.getStatus())) {
             throw new IllegalStateException(
@@ -174,6 +194,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return period;
     }
 
+    /**
+     * 정량 평가 점수를 조회한다.
+     * @param evaluationPeriodId 평가 기간 ID
+     * @return 직원별 정량 점수 맵
+     */
     private Map<Long, MonthlyQuantitativeScoreRow> loadQuantitativeScores(
         Long evaluationPeriodId
     ) {
@@ -189,6 +214,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         ));
     }
 
+    /**
+     * 정성 평가 점수를 조회한다.
+     * @param evaluationPeriodId 평가 기간 ID
+     * @return 직원별 정성 점수 맵
+     */
     private Map<Long, BigDecimal> loadQualitativeScores(Long evaluationPeriodId) {
         List<MonthlyQualitativeScoreRow> values =
             qualitativeScoreQueryMapper.findLatestNormalizedScoresByEvaluationPeriodId(evaluationPeriodId);
@@ -199,6 +229,12 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         ));
     }
 
+    /**
+     * 기간 내 승인된 지식글 수를 조회한다.
+     * @param startDate 조회 시작일
+     * @param endDate 조회 종료일
+     * @return 직원별 승인 지식글 수 맵
+     */
     private Map<Long, Integer> loadKmsApprovedArticleCounts(LocalDate startDate, LocalDate endDate) {
         return kmsArticleQueryMapper.findApprovedArticleCountsByApprovedAtBetween(
                 startDate.atStartOfDay(),
@@ -211,6 +247,12 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
             ));
     }
 
+    /**
+     * 정성 평가 키워드를 기반으로 스킬 점수를 생성한다.
+     * @param evaluationPeriodId 평가 기간 ID
+     * @param qualitativeScores 직원별 정성 점수 맵
+     * @return 직원별 정성 스킬 점수 맵
+     */
     private Map<Long, Map<String, BigDecimal>> buildQualitativeSkillScores(
         Long evaluationPeriodId,
         Map<Long, BigDecimal> qualitativeScores
@@ -242,6 +284,21 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return result;
     }
 
+    /**
+     * 직원별 통합 점수 집계 객체를 생성한다.
+     * @param employee 직원 projection 정보
+     * @param evaluationPeriodId 평가 기간 ID
+     * @param periodType 평가 기간 유형
+     * @param pointEarnedDate 포인트 적립일
+     * @param occurredAt 이벤트 발생 시각
+     * @param quantitativeScores 정량 점수 맵
+     * @param qualitativeScores 정성 점수 맵
+     * @param qualitativeSkillScores 정성 스킬 점수 맵
+     * @param evaluationCategoryWeightsByTierGroup 티어 그룹별 평가 비중 맵
+     * @param kmsApprovedArticleCounts 승인 지식글 수 맵
+     * @param challengeCounts 도전 과제 수 맵
+     * @return 통합 점수 집계 객체
+     */
     private IntegratedScoreAggregate buildAggregate(
         EmployeeProjectionEntity employee,
         Long evaluationPeriodId,
@@ -297,6 +354,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
             .build();
     }
 
+    /**
+     * 티어 그룹별 평가 비중 설정을 조회한다.
+     * @param 없음
+     * @return 티어 그룹별 평가 비중 맵
+     */
     private Map<String, Map<String, Integer>> loadEvaluationCategoryWeights() {
         Map<String, Map<String, Integer>> result = new LinkedHashMap<>();
         for (EvaluationWeightConfigProjectionEntity projection : evaluationWeightConfigProjectionRepository.findAllByActiveTrueAndDeletedFalse()) {
@@ -309,6 +371,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return result;
     }
 
+    /**
+     * 직원 티어를 평가 비중 그룹 코드로 변환한다.
+     * @param employeeTier 직원 티어
+     * @return 평가 비중 그룹 코드
+     */
     private String resolveEvaluationTierGroup(String employeeTier) {
         if (employeeTier == null || employeeTier.isBlank()) {
             return "BC";
@@ -317,6 +384,12 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return ("S".equals(normalized) || "A".equals(normalized)) ? "SA" : "BC";
     }
 
+    /**
+     * 매칭 키워드 JSON 을 상세 객체 목록으로 변환한다.
+     * @param detailsJson 상세 키워드 JSON
+     * @param keywordsJson 키워드 목록 JSON
+     * @return 매칭 키워드 상세 목록
+     */
     private List<MatchedKeywordDetail> parseMatchedKeywordDetails(String detailsJson, String keywordsJson) {
         try {
             if (detailsJson != null && !detailsJson.isBlank()) {
@@ -358,10 +431,20 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         }
     }
 
+    /**
+     * 집계 대상 정량 평가 상태 목록을 반환한다.
+     * @param 없음
+     * @return 집계 대상 정량 평가 상태 목록
+     */
     private Collection<String> resolveQuantitativeStatuses() {
         return List.of("CONFIRMED");
     }
 
+    /**
+     * 평가 기간 projection entity 를 mapper row 형태로 변환한다.
+     * @param entity 평가 기간 projection entity
+     * @return mapper 조회용 평가 기간 row
+     */
     private EvaluationPeriodProjectionRow toPeriodRow(EvaluationPeriodProjectionEntity entity) {
         EvaluationPeriodProjectionRow row = new EvaluationPeriodProjectionRow();
         row.setEvaluationPeriodId(entity.getEvaluationPeriodId());
@@ -377,6 +460,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return row;
     }
 
+    /**
+     * 문자열 periodType 값을 배치 enum 으로 변환한다.
+     * @param value 요청된 periodType 문자열
+     * @return 배치 평가 기간 유형
+     */
     private BatchPeriodType parsePeriodType(String value) {
         if (value == null || value.isBlank()) {
             return BatchPeriodType.MONTH;
@@ -384,6 +472,11 @@ public class IntegratedScoreReader implements ItemReader<IntegratedScoreAggregat
         return BatchPeriodType.valueOf(value.trim().toUpperCase());
     }
 
+    /**
+     * 통합 점수 집계 대상 직원인지 확인한다.
+     * @param employee 직원 projection 정보
+     * @return 집계 대상 여부
+     */
     private boolean isEligibleEmployee(EmployeeProjectionEntity employee) {
         if (employee.getEmployeeId() == null) {
             return false;

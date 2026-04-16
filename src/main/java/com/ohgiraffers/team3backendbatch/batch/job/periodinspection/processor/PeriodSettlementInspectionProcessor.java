@@ -14,6 +14,11 @@ public class PeriodSettlementInspectionProcessor
 
     private static final BigDecimal SWING_THRESHOLD = new BigDecimal("25.00");
 
+    /**
+     * 상위 기간 정산 점검 결과를 생성한다.
+     * @param item 상위 기간 정산 점검 대상 데이터
+     * @return 상위 기간 정산 점검 결과
+     */
     @Override
     public PeriodSettlementInspectionResult process(PeriodSettlementInspectionTarget item) {
         List<String> findings = new ArrayList<>();
@@ -55,6 +60,12 @@ public class PeriodSettlementInspectionProcessor
             .build();
     }
 
+    /**
+     * 최소/최대 점수 차이가 임계값 이상인지 확인한다.
+     * @param minScore 최소 점수
+     * @param maxScore 최대 점수
+     * @return 변동 폭 임계값 초과 여부
+     */
     private boolean hasLargeSwing(BigDecimal minScore, BigDecimal maxScore) {
         if (minScore == null || maxScore == null) {
             return false;

@@ -47,6 +47,11 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
     private Iterator<PromotionCandidateSnapshot> iterator = Collections.emptyIterator();
     private boolean initialized;
 
+    /**
+     * 승급 후보 집계 대상을 한 건씩 반환한다.
+     * @param 없음
+     * @return 승급 후보 스냅샷 데이터
+     */
     @Override
     public PromotionCandidateSnapshot read() {
         if (!initialized) {
@@ -56,6 +61,11 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
         return iterator.hasNext() ? iterator.next() : null;
     }
 
+    /**
+     * 승급 후보 스냅샷 목록을 생성한다.
+     * @param 없음
+     * @return 승급 후보 스냅샷 목록
+     */
     private List<PromotionCandidateSnapshot> loadItems() {
         EvaluationPeriodProjectionRow evaluationPeriod = evaluationPeriodQueryMapper
             .findLatestConfirmedMonthlyPeriod()
@@ -114,6 +124,17 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
         return items;
     }
 
+    /**
+     * 직원별 승급 후보 스냅샷을 생성한다.
+     * @param employee 직원 projection 정보
+     * @param evaluationPeriodId 평가 기간 ID
+     * @param effectiveDate 기준 적용일
+     * @param occurredAt 이벤트 발생 시각
+     * @param tierConfigByTier 티어별 승급 기준 맵
+     * @param accumulatedPoints 직원별 누적 포인트 맵
+     * @param pendingEmployeeIds 보류 중인 승급 대상 직원 ID 집합
+     * @return 승급 후보 스냅샷
+     */
     private PromotionCandidateSnapshot buildSnapshot(
         EmployeeProjectionEntity employee,
         Long evaluationPeriodId,
@@ -158,6 +179,11 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
             .build();
     }
 
+    /**
+     * 승급 후보 집계 대상 직원인지 확인한다.
+     * @param employee 직원 projection 정보
+     * @return 집계 대상 여부
+     */
     private boolean isEligibleEmployee(EmployeeProjectionEntity employee) {
         if (employee.getEmployeeId() == null) {
             return false;
@@ -165,6 +191,11 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
         return employee.getEmployeeStatus() == null || !"INACTIVE".equalsIgnoreCase(employee.getEmployeeStatus());
     }
 
+    /**
+     * 직원 티어 문자열을 정규화한다.
+     * @param employeeTier 직원 티어 문자열
+     * @return 정규화된 티어 코드
+     */
     private String normalizeTier(String employeeTier) {
         if (employeeTier == null || employeeTier.isBlank()) {
             return null;
@@ -176,6 +207,11 @@ public class PromotionCandidateReader implements ItemReader<PromotionCandidateSn
         };
     }
 
+    /**
+     * 현재 티어의 다음 승급 대상 티어를 반환한다.
+     * @param currentTier 현재 티어
+     * @return 승급 대상 티어
+     */
     private String resolveTargetTier(String currentTier) {
         return switch (currentTier) {
             case "C" -> "B";

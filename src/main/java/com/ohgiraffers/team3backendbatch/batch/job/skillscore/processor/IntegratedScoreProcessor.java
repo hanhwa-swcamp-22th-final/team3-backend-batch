@@ -31,6 +31,11 @@ public class IntegratedScoreProcessor
     private final MonthlySkillContributionCalculator monthlySkillContributionCalculator;
     private final TierAwareKpiScoreCalculator tierAwareKpiScoreCalculator;
 
+    /**
+     * 월간 정량·정성·부가 지표를 종합해 성과 포인트와 스킬 성장 이벤트를 계산한다.
+     * @param item 종합 점수 집계 원본 데이터
+     * @return 계산 결과가 반영된 종합 점수 집계 데이터
+     */
     @Override
     public IntegratedScoreAggregate process(IntegratedScoreAggregate item) {
         Integer quantitativePoint = null;
@@ -127,6 +132,12 @@ public class IntegratedScoreProcessor
         return item.withCalculatedResults(quantitativePoint, qualitativePoint, events, skillGrowthEvents);
     }
 
+    /**
+     * 정량 점수와 정성 점수를 이용해 capability score 를 계산한다.
+     * @param quantitativeBaseScore 정량 기준 점수
+     * @param qualitativeScore 정성 점수
+     * @return capability score
+     */
     private BigDecimal resolveCapabilityScore(BigDecimal quantitativeBaseScore, BigDecimal qualitativeScore) {
         if (quantitativeBaseScore == null) {
             return qualitativeScore;
@@ -137,6 +148,15 @@ public class IntegratedScoreProcessor
         return quantitativeBaseScore.add(qualitativeScore).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
     }
 
+    /**
+     * 성과 포인트 계산 이벤트를 생성한다.
+     * @param item 종합 점수 집계 데이터
+     * @param pointType 포인트 유형
+     * @param pointAmount 포인트 값
+     * @param description 포인트 설명
+     * @param capabilityScore capability score
+     * @return 성과 포인트 계산 이벤트
+     */
     private PerformancePointCalculatedEvent buildEvent(
         IntegratedScoreAggregate item,
         String pointType,
@@ -159,6 +179,13 @@ public class IntegratedScoreProcessor
             .build();
     }
 
+    /**
+     * 평가 비중을 반영해 포인트를 보정한다.
+     * @param item 종합 점수 집계 데이터
+     * @param pointType 포인트 유형
+     * @param basePoint 기본 포인트
+     * @return 평가 비중이 반영된 포인트
+     */
     private int applyEvaluationWeightToPoint(
         IntegratedScoreAggregate item,
         String pointType,
@@ -191,6 +218,14 @@ public class IntegratedScoreProcessor
         };
     }
 
+    /**
+     * 두 카테고리의 설정 비중 합계를 계산한다.
+     * @param configuredWeights tier 그룹별 설정 비중 맵
+     * @param employeeTier 직원 tier
+     * @param firstCategory 첫 번째 카테고리
+     * @param secondCategory 두 번째 카테고리
+     * @return 설정 비중 합계
+     */
     private int resolveCombinedConfiguredWeight(
         Map<String, Integer> configuredWeights,
         String employeeTier,
@@ -201,11 +236,25 @@ public class IntegratedScoreProcessor
             + resolveConfiguredWeight(configuredWeights, employeeTier, secondCategory);
     }
 
+    /**
+     * 두 카테고리의 기본 비중 합계를 계산한다.
+     * @param employeeTier 직원 tier
+     * @param firstCategory 첫 번째 카테고리
+     * @param secondCategory 두 번째 카테고리
+     * @return 기본 비중 합계
+     */
     private int resolveCombinedBaselineWeight(String employeeTier, String firstCategory, String secondCategory) {
         return resolveBaselineWeight(employeeTier, firstCategory)
             + resolveBaselineWeight(employeeTier, secondCategory);
     }
 
+    /**
+     * 카테고리별 설정 비중을 조회한다.
+     * @param configuredWeights tier 그룹별 설정 비중 맵
+     * @param employeeTier 직원 tier
+     * @param category 카테고리 코드
+     * @return 설정 비중 또는 기본 비중
+     */
     private int resolveConfiguredWeight(
         Map<String, Integer> configuredWeights,
         String employeeTier,
@@ -217,6 +266,12 @@ public class IntegratedScoreProcessor
         return configuredWeights.getOrDefault(category, resolveBaselineWeight(employeeTier, category));
     }
 
+    /**
+     * 카테고리별 기본 비중을 계산한다.
+     * @param employeeTier 직원 tier
+     * @param category 카테고리 코드
+     * @return 기본 비중
+     */
     private int resolveBaselineWeight(String employeeTier, String category) {
         boolean strategicTier = tierAwareKpiScoreCalculator.isStrategicTier(employeeTier);
         return switch (category) {
@@ -228,6 +283,13 @@ public class IntegratedScoreProcessor
         };
     }
 
+    /**
+     * 설정 비중과 기본 비중을 비교해 포인트를 스케일링한다.
+     * @param basePoint 기본 포인트
+     * @param configuredWeight 설정 비중
+     * @param baselineWeight 기본 비중
+     * @return 스케일링된 포인트
+     */
     private int scalePoint(int basePoint, int configuredWeight, int baselineWeight) {
         if (baselineWeight <= 0) {
             return basePoint;
@@ -238,6 +300,13 @@ public class IntegratedScoreProcessor
             .intValue();
     }
 
+    /**
+     * 스킬 성장 계산 이벤트를 생성한다.
+     * @param item 종합 점수 집계 데이터
+     * @param skillCategory 스킬 카테고리
+     * @param contributionScore 스킬 기여 점수
+     * @return 스킬 성장 계산 이벤트
+     */
     private SkillGrowthCalculatedEvent buildSkillGrowthEvent(
         IntegratedScoreAggregate item,
         String skillCategory,

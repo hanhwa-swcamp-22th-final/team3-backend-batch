@@ -12,6 +12,11 @@ public class PeriodSettlementInspectionWriter implements ItemWriter<PeriodSettle
 
     private static final Logger log = LoggerFactory.getLogger(PeriodSettlementInspectionWriter.class);
 
+    /**
+     * 상위 기간 정산 점검 결과를 로그로 출력한다.
+     * @param chunk 기록할 상위 기간 정산 점검 결과 묶음
+     * @return 반환값 없음
+     */
     @Override
     public void write(Chunk<? extends PeriodSettlementInspectionResult> chunk) {
         int warnCount = 0;

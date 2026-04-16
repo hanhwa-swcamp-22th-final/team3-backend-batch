@@ -15,6 +15,11 @@ public class OrderDifficultyProcessor implements ItemProcessor<OrderDifficultySo
 
     private final OrderDifficultyCalculator orderDifficultyCalculator;
 
+    /**
+     * 주문 난이도 산정 원본 데이터를 분석 결과로 변환한다.
+     * @param item 주문 난이도 산정 원본 데이터
+     * @return 주문 난이도 분석 결과
+     */
     @Override
     public OrderDifficultyResult process(OrderDifficultySource item) {
         if (item == null) {

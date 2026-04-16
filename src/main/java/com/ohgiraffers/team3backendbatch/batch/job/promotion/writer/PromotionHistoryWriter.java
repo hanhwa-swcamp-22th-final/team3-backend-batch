@@ -19,6 +19,11 @@ public class PromotionHistoryWriter implements ItemWriter<PromotionCandidateSnap
 
     private final PromotionCandidateEventPublisher promotionCandidateEventPublisher;
 
+    /**
+     * 승급 후보 평가 이벤트를 발행한다.
+     * @param chunk 발행할 승급 후보 스냅샷 묶음
+     * @return 반환값 없음
+     */
     @Override
     public void write(Chunk<? extends PromotionCandidateSnapshot> chunk) {
         int eventCount = 0;

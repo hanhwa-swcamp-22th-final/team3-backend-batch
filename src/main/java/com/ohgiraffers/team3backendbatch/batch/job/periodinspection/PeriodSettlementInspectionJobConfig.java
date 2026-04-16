@@ -28,6 +28,11 @@ public class PeriodSettlementInspectionJobConfig {
     private final PeriodSettlementInspectionProcessor periodSettlementInspectionProcessor;
     private final PeriodSettlementInspectionWriter periodSettlementInspectionWriter;
 
+    /**
+     * 상위 기간 정산 점검 배치 Job 을 등록한다.
+     * @param 없음
+     * @return 상위 기간 정산 점검 Job
+     */
     @Bean(name = BatchJobNames.PERIOD_SETTLEMENT_INSPECTION_JOB)
     public Job periodSettlementInspectionJob() {
         return new JobBuilder(BatchJobNames.PERIOD_SETTLEMENT_INSPECTION_JOB, jobRepository)
@@ -36,6 +41,11 @@ public class PeriodSettlementInspectionJobConfig {
             .build();
     }
 
+    /**
+     * 상위 기간 정산 점검 Step 을 등록한다.
+     * @param 없음
+     * @return 상위 기간 정산 점검 Step
+     */
     @Bean
     public Step periodSettlementInspectionStep() {
         return new StepBuilder("periodSettlementInspectionStep", jobRepository)
