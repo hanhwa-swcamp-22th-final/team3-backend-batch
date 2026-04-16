@@ -18,6 +18,11 @@ public class PerformancePointWriter implements ItemWriter<IntegratedScoreAggrega
 
     private final PerformancePointEventPublisher performancePointEventPublisher;
 
+    /**
+     * 성과 포인트 계산 이벤트를 발행한다.
+     * @param chunk 성과 포인트 이벤트를 담고 있는 집계 결과 청크
+     * @return 반환값 없음
+     */
     @Override
     public void write(Chunk<? extends IntegratedScoreAggregate> chunk) {
         int eventCount = 0;

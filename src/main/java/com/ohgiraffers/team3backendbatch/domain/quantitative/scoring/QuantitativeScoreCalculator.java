@@ -299,6 +299,41 @@ public class QuantitativeScoreCalculator {
         return clampRatio(normalized);
     }
 
+    public BigDecimal resolveNEnv(
+        BigDecimal environmentTemperature,
+        BigDecimal environmentTempMin,
+        BigDecimal environmentTempMax,
+        BigDecimal environmentHumidity,
+        BigDecimal environmentHumidityMin,
+        BigDecimal environmentHumidityMax,
+        BigDecimal environmentParticleCount,
+        BigDecimal environmentParticleLimit,
+        BigDecimal environmentTempWeight,
+        BigDecimal environmentHumidityWeight,
+        BigDecimal environmentParticleWeight,
+        Integer unresolvedEnvironmentEventCount,
+        QuantitativeScoringPolicy policy
+    ) {
+        if (unresolvedEnvironmentEventCount == null || unresolvedEnvironmentEventCount <= 0) {
+            return ZERO;
+        }
+
+        return calculateNEnv(
+            environmentTemperature,
+            environmentTempMin,
+            environmentTempMax,
+            environmentHumidity,
+            environmentHumidityMin,
+            environmentHumidityMax,
+            environmentParticleCount,
+            environmentParticleLimit,
+            environmentTempWeight,
+            environmentHumidityWeight,
+            environmentParticleWeight,
+            policy
+        );
+    }
+
     public BigDecimal calculateMaterialShielding(
         Integer defectiveWorkersSameLot,
         Integer totalWorkersSameLot,
@@ -344,15 +379,44 @@ public class QuantitativeScoreCalculator {
         return calculateMaterialShielding(defectiveWorkersSameLot, totalWorkersSameLot, lotDefectThreshold, policy);
     }
 
+    public BigDecimal resolveMaterialShielding(
+        Integer failedLotCount,
+        Integer totalLotCount,
+        BigDecimal peerLotFailRate,
+        BigDecimal lotDefectThreshold,
+        BatchPeriodType periodType,
+        QuantitativeScoringPolicy policy
+    ) {
+        if (periodType != BatchPeriodType.MONTH) {
+            return ZERO;
+        }
+        if (failedLotCount == null || totalLotCount == null || totalLotCount <= 0) {
+            return ZERO;
+        }
+
+        BigDecimal employeeLotFailRate = BigDecimal.valueOf(failedLotCount)
+            .divide(BigDecimal.valueOf(totalLotCount), 4, RoundingMode.HALF_UP);
+        BigDecimal threshold = positiveOrDefault(
+            lotDefectThreshold,
+            positiveOrDefault(policy.getDefaultLotThreshold(), DEFAULT_LOT_THRESHOLD)
+        );
+
+        if (employeeLotFailRate.compareTo(threshold) < 0) {
+            return ZERO;
+        }
+        if (employeeLotFailRate.compareTo(safeRatio(peerLotFailRate)) <= 0) {
+            return ZERO;
+        }
+        return scale(ONE);
+    }
+
     public BigDecimal calculateEIdx(
         String equipmentGrade,
         BigDecimal nAge,
         BigDecimal etaAge,
-        BigDecimal etaMaint,
-        BigDecimal nEnv,
-        BigDecimal materialShielding
+        BigDecimal etaMaint
     ) {
-        return calculateEIdx(equipmentGrade, nAge, etaAge, etaMaint, nEnv, materialShielding, defaultPolicy);
+        return calculateEIdx(equipmentGrade, nAge, etaAge, etaMaint, defaultPolicy);
     }
 
     public BigDecimal calculateEIdx(
@@ -360,8 +424,6 @@ public class QuantitativeScoreCalculator {
         BigDecimal nAge,
         BigDecimal etaAge,
         BigDecimal etaMaint,
-        BigDecimal nEnv,
-        BigDecimal materialShielding,
         QuantitativeScoringPolicy policy
     ) {
         if (isProtectedGrade(equipmentGrade) || safeRatio(nAge).compareTo(BigDecimal.ZERO) <= 0) {
@@ -370,9 +432,7 @@ public class QuantitativeScoreCalculator {
 
         BigDecimal eIdx = ONE
             .add(positiveOrDefault(policy.getAgeFactor(), AGE_FACTOR).multiply(ONE.subtract(safeRatio(etaAge))))
-            .add(positiveOrDefault(policy.getMaintFactor(), MAINT_FACTOR).multiply(ONE.subtract(safeRatio(etaMaint))))
-            .add(positiveOrDefault(policy.getEnvFactor(), ENV_FACTOR).multiply(safeRatio(nEnv)))
-            .add(positiveOrDefault(policy.getMaterialFactor(), MATERIAL_FACTOR).multiply(safeRatio(materialShielding)));
+            .add(positiveOrDefault(policy.getMaintFactor(), MAINT_FACTOR).multiply(ONE.subtract(safeRatio(etaMaint))));
 
         return scale(eIdx.max(ONE).min(positiveOrDefault(policy.getEIdxMax(), EIDX_MAX)));
     }
@@ -451,6 +511,21 @@ public class QuantitativeScoreCalculator {
             return ZERO;
         }
         return scale(baselineError.multiply(positiveOrDefault(eIdx, ONE)));
+    }
+
+    public BigDecimal calculateEnvironmentAdjustedBaselineError(
+        BigDecimal baselineError,
+        BigDecimal eIdx,
+        BigDecimal nEnv,
+        QuantitativeScoringPolicy policy
+    ) {
+        if (!isPositive(baselineError)) {
+            return ZERO;
+        }
+        BigDecimal adjusted = baselineError
+            .multiply(positiveOrDefault(eIdx, ONE))
+            .multiply(ONE.add(positiveOrDefault(policy.getEnvFactor(), ENV_FACTOR).multiply(safeRatio(nEnv))));
+        return scale(adjusted);
     }
 
     public BigDecimal calculateQBase(BigDecimal uphScore, BigDecimal yieldScore, BigDecimal leadTimeScore) {
@@ -539,13 +614,6 @@ public class QuantitativeScoreCalculator {
         return clampPercentage(raw);
     }
 
-    public BigDecimal resolveMonthlyCorrection(BigDecimal correction, BatchPeriodType periodType) {
-        if (periodType != BatchPeriodType.MONTH || correction == null) {
-            return ZERO;
-        }
-        return scale(correction);
-    }
-
     public BigDecimal resolveMonthlyPenalty(BigDecimal penalty, BatchPeriodType periodType) {
         if (periodType != BatchPeriodType.MONTH || penalty == null) {
             return ZERO;
@@ -555,8 +623,6 @@ public class QuantitativeScoreCalculator {
 
     public BigDecimal calculateFinalSQuant(
         BigDecimal provisionalSQuant,
-        BigDecimal environmentCorrection,
-        BigDecimal materialCorrection,
         BigDecimal antiGamingPenalty,
         BatchPeriodType periodType
     ) {
@@ -565,8 +631,6 @@ public class QuantitativeScoreCalculator {
         }
 
         BigDecimal finalScore = safe(provisionalSQuant)
-            .add(safe(environmentCorrection))
-            .add(safe(materialCorrection))
             .subtract(safe(antiGamingPenalty));
         return clampPercentage(finalScore);
     }

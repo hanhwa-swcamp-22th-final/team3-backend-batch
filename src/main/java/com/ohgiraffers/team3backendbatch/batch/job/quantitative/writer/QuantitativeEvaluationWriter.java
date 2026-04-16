@@ -33,11 +33,21 @@ public class QuantitativeEvaluationWriter
     private final QuantitativeEvaluationEventPublisher quantitativeEvaluationEventPublisher;
     private final Set<Long> publishedEquipmentBaselineIds = new HashSet<>();
 
+    /**
+     * Step 시작 전에 설비 baseline 발행 이력을 초기화한다.
+     * @param stepExecution 현재 Step 실행 정보
+     * @return 반환값 없음
+     */
     @Override
     public void beforeStep(StepExecution stepExecution) {
         publishedEquipmentBaselineIds.clear();
     }
 
+    /**
+     * 정량 평가 계산 결과 이벤트를 발행한다.
+     * @param chunk 발행할 정량 평가 집계 데이터 묶음
+     * @return 반환값 없음
+     */
     @Override
     public void write(Chunk<? extends QuantitativeEvaluationAggregate> chunk) {
         LocalDateTime calculatedAt = LocalDateTime.now();
@@ -73,12 +83,22 @@ public class QuantitativeEvaluationWriter
         );
     }
 
+    /**
+     * Step 종료 후 설비 baseline 발행 이력을 정리한다.
+     * @param stepExecution 현재 Step 실행 정보
+     * @return Step 종료 상태
+     */
     @Override
     public ExitStatus afterStep(StepExecution stepExecution) {
         publishedEquipmentBaselineIds.clear();
         return null;
     }
 
+    /**
+     * 설비별 정량 평가 결과 이벤트 payload 를 생성한다.
+     * @param item 정량 평가 집계 데이터
+     * @return 설비별 정량 평가 결과 이벤트
+     */
     private QuantitativeEquipmentResultEvent toEquipmentResult(QuantitativeEvaluationAggregate item) {
         return QuantitativeEquipmentResultEvent.builder()
             .equipmentId(item.getEquipmentId())
@@ -93,6 +113,12 @@ public class QuantitativeEvaluationWriter
             .build();
     }
 
+    /**
+     * 설비 baseline 계산 이벤트를 중복 없이 발행한다.
+     * @param item 정량 평가 집계 데이터
+     * @param calculatedAt 계산 시각
+     * @return 반환값 없음
+     */
     private void publishEquipmentBaselineCalculatedIfNeeded(
         QuantitativeEvaluationAggregate item,
         LocalDateTime calculatedAt

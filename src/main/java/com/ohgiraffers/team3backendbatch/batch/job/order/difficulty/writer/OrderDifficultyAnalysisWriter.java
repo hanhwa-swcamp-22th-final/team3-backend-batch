@@ -21,6 +21,11 @@ public class OrderDifficultyAnalysisWriter implements ItemWriter<OrderDifficulty
 
     private final OrderDifficultyAnalysisEventPublisher orderDifficultyAnalysisEventPublisher;
 
+    /**
+     * 주문 난이도 분석 결과 이벤트를 발행한다.
+     * @param chunk 발행할 주문 난이도 분석 결과 묶음
+     * @return 반환값 없음
+     */
     @Override
     public void write(Chunk<? extends OrderDifficultyResult> chunk) {
         if (chunk == null || chunk.isEmpty()) {
@@ -32,6 +37,11 @@ public class OrderDifficultyAnalysisWriter implements ItemWriter<OrderDifficulty
         log.info("Queued order difficulty analyzed events. itemCount={}", results.size());
     }
 
+    /**
+     * 트랜잭션 커밋 이후 주문 난이도 분석 이벤트를 발행한다.
+     * @param results 발행할 주문 난이도 분석 결과 목록
+     * @return 반환값 없음
+     */
     private void publishAnalyzedEventsAfterCommit(List<? extends OrderDifficultyResult> results) {
         Runnable publishAction = () -> results.forEach(result ->
             orderDifficultyAnalysisEventPublisher.publishAnalyzed(

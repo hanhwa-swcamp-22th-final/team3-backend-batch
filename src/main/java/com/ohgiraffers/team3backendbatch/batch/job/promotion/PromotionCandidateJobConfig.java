@@ -37,6 +37,11 @@ public class PromotionCandidateJobConfig {
     private final PromotionCandidateProcessor promotionCandidateProcessor;
     private final PromotionHistoryWriter promotionHistoryWriter;
 
+    /**
+     * 승급 후보 집계 배치 Job 을 등록한다.
+     * @param 없음
+     * @return 승급 후보 집계 Job
+     */
     @Bean(name = BatchJobNames.PROMOTION_CANDIDATE_JOB)
     public Job promotionCandidateJob() {
         return new JobBuilder(BatchJobNames.PROMOTION_CANDIDATE_JOB, jobRepository)
@@ -45,6 +50,11 @@ public class PromotionCandidateJobConfig {
             .build();
     }
 
+    /**
+     * 승급 후보 집계 Step 을 등록한다.
+     * @param 없음
+     * @return 승급 후보 집계 Step
+     */
     @Bean
     public Step promotionCandidateStep() {
         return new StepBuilder("promotionCandidateStep", jobRepository)

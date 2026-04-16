@@ -45,6 +45,11 @@ public class ScoreAggregationJobConfig {
     private final SkillWriter skillWriter;
     private final PerformancePointWriter performancePointWriter;
 
+    /**
+     * 종합 점수 집계 배치 Job 을 생성한다.
+     * @param 없음
+     * @return 종합 점수 집계 Job 객체
+     */
     @Bean(name = BatchJobNames.SCORE_AGGREGATION_JOB)
     public Job scoreAggregationJob() {
         return new JobBuilder(BatchJobNames.SCORE_AGGREGATION_JOB, jobRepository)
@@ -53,6 +58,11 @@ public class ScoreAggregationJobConfig {
             .build();
     }
 
+    /**
+     * 종합 점수 집계 Step 을 생성한다.
+     * @param 없음
+     * @return 종합 점수 집계 Step 객체
+     */
     @Bean
     public Step scoreAggregationStep() {
         return new StepBuilder("scoreAggregationStep", jobRepository)
@@ -63,6 +73,11 @@ public class ScoreAggregationJobConfig {
             .build();
     }
 
+    /**
+     * 종합 점수 집계 결과를 여러 writer 에 위임하는 composite writer 를 생성한다.
+     * @param 없음
+     * @return 종합 점수 집계용 composite writer
+     */
     @Bean
     public CompositeItemWriter<IntegratedScoreAggregate> integratedScoreCompositeWriter() {
         CompositeItemWriter<IntegratedScoreAggregate> writer = new CompositeItemWriter<>();

@@ -25,6 +25,11 @@ public class OrderDifficultyAnalysisJobConfig {
     private final OrderDifficultyProcessor orderDifficultyProcessor;
     private final OrderDifficultyAnalysisWriter orderDifficultyAnalysisWriter;
 
+    /**
+     * 주문 난이도 분석 배치 Job 을 등록한다.
+     * @param 없음
+     * @return 주문 난이도 분석 Job
+     */
     @Bean
     public Job orderDifficultyAnalysisJob() {
         return new JobBuilder("orderDifficultyAnalysisJob", jobRepository)
@@ -32,6 +37,11 @@ public class OrderDifficultyAnalysisJobConfig {
             .build();
     }
 
+    /**
+     * 주문 난이도 분석 Step 을 등록한다.
+     * @param 없음
+     * @return 주문 난이도 분석 Step
+     */
     @Bean
     public Step orderDifficultyAnalysisStep() {
         return new StepBuilder("orderDifficultyAnalysisStep", jobRepository)

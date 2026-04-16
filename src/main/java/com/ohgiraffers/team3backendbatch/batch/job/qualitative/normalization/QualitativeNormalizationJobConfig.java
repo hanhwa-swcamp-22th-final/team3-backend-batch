@@ -28,6 +28,11 @@ public class QualitativeNormalizationJobConfig {
     private final QualitativeNormalizationProcessor qualitativeNormalizationProcessor;
     private final QualitativeNormalizationWriter qualitativeNormalizationWriter;
 
+    /**
+     * 정성 점수 정규화 배치 Job 을 등록한다.
+     * @param 없음
+     * @return 정성 점수 정규화 Job
+     */
     @Bean(name = BatchJobNames.QUALITATIVE_NORMALIZATION_JOB)
     public Job qualitativeNormalizationJob() {
         return new JobBuilder(BatchJobNames.QUALITATIVE_NORMALIZATION_JOB, jobRepository)
@@ -36,6 +41,11 @@ public class QualitativeNormalizationJobConfig {
             .build();
     }
 
+    /**
+     * 정성 점수 정규화 Step 을 등록한다.
+     * @param 없음
+     * @return 정성 점수 정규화 Step
+     */
     @Bean
     public Step qualitativeNormalizationStep() {
         return new StepBuilder("qualitativeNormalizationStep", jobRepository)

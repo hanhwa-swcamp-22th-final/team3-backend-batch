@@ -16,6 +16,11 @@ public class QualitativeAnalysisJobCompletionListener implements JobExecutionLis
 
     private final QualitativeSubmittedEventStore qualitativeSubmittedEventStore;
 
+    /**
+     * 배치 종료 후 캐시된 정성 평가 제출 이벤트를 정리한다.
+     * @param jobExecution 현재 Job 실행 정보
+     * @return 반환값 없음
+     */
     @Override
     public void afterJob(JobExecution jobExecution) {
         Long qualitativeEvaluationId = jobExecution.getJobParameters().getLong("qualitativeEvaluationId");

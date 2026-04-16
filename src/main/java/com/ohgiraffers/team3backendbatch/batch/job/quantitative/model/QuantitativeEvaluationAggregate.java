@@ -57,9 +57,10 @@ public class QuantitativeEvaluationAggregate {
     private final BigDecimal environmentTempWeight;
     private final BigDecimal environmentHumidityWeight;
     private final BigDecimal environmentParticleWeight;
-
-    private final Integer defectiveWorkersSameLot;
-    private final Integer totalWorkersSameLot;
+    private final Integer unresolvedEnvironmentEventCount;
+    private final Integer failedLotCount;
+    private final Integer totalLotCount;
+    private final BigDecimal peerLotFailRate;
     private final BigDecimal lotDefectThreshold;
 
     private final BigDecimal difficultyScore;
@@ -67,8 +68,6 @@ public class QuantitativeEvaluationAggregate {
     private final String currentSkillTier;
     private final BigDecimal errorReferenceRate;
     private final BigDecimal baselineError;
-    private final BigDecimal environmentCorrection;
-    private final BigDecimal materialCorrection;
     private final BigDecimal antiGamingPenalty;
     private final BigDecimal groupMean;
     private final BigDecimal groupStdDev;
@@ -116,8 +115,6 @@ public class QuantitativeEvaluationAggregate {
             .currentEquipmentGrade(result.getCurrentEquipmentGrade())
             .bonusPoint(result.getBonusPoint())
             .provisionalSQuant(result.getProvisionalSQuant())
-            .environmentCorrection(result.getEnvironmentCorrection())
-            .materialCorrection(result.getMaterialCorrection())
             .antiGamingPenalty(result.getAntiGamingPenalty())
             .sQuant(result.getSQuant())
             .tScore(result.getTScore())

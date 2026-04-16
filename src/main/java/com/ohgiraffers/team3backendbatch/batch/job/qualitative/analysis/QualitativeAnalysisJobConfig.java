@@ -32,6 +32,11 @@ public class QualitativeAnalysisJobConfig {
     private final QualitativeEvaluationProcessor qualitativeEvaluationProcessor;
     private final QualitativeAnalysisWriter qualitativeAnalysisWriter;
 
+    /**
+     * 정성 평가 분석 배치 Job 을 등록한다.
+     * @param 없음
+     * @return 정성 평가 분석 Job
+     */
     @Bean(name = BatchJobNames.QUALITATIVE_ANALYSIS_JOB)
     public Job qualitativeAnalysisJob() {
         return new JobBuilder(BatchJobNames.QUALITATIVE_ANALYSIS_JOB, jobRepository)
@@ -41,6 +46,11 @@ public class QualitativeAnalysisJobConfig {
             .build();
     }
 
+    /**
+     * 정성 평가 분석 Step 을 등록한다.
+     * @param 없음
+     * @return 정성 평가 분석 Step
+     */
     @Bean
     public Step qualitativeAnalysisStep() {
         return new StepBuilder("qualitativeAnalysisStep", jobRepository)

@@ -22,6 +22,11 @@ public class ScoreWriter implements ItemWriter<IntegratedScoreAggregate> {
 
     private static final Logger log = LoggerFactory.getLogger(ScoreWriter.class);
 
+    /**
+     * 종합 점수 projection 저장 처리를 수행한다.
+     * @param chunk 종합 점수 저장 대상 청크
+     * @return 반환값 없음
+     */
     @Override
     public void write(Chunk<? extends IntegratedScoreAggregate> chunk) {
         log.info("ScoreWriter chunk skeleton invoked. itemCount={}", chunk.size());

@@ -16,6 +16,11 @@ public class QuantitativeEvaluationProcessor
 
     private final QuantitativeScoreCalculator quantitativeScoreCalculator;
 
+    /**
+     * 정량 평가 집계 데이터로부터 계산 결과를 생성한다.
+     * @param item 정량 평가 집계 데이터
+     * @return 계산 결과가 반영된 정량 평가 집계 데이터
+     */
     @Override
     public QuantitativeEvaluationAggregate process(QuantitativeEvaluationAggregate item) {
         QuantitativeScoringPolicy policy = quantitativeScoreCalculator.resolvePolicy(item.getPolicyConfig());
@@ -51,7 +56,7 @@ public class QuantitativeEvaluationProcessor
             item.getMaintenanceWeightSum()
         );
         BigDecimal etaMaint = quantitativeScoreCalculator.calculateEtaMaint(nMaint, policy);
-        BigDecimal nEnv = quantitativeScoreCalculator.calculateNEnv(
+        BigDecimal nEnv = quantitativeScoreCalculator.resolveNEnv(
             item.getEnvironmentTemperature(),
             item.getEnvironmentTempMin(),
             item.getEnvironmentTempMax(),
@@ -63,11 +68,13 @@ public class QuantitativeEvaluationProcessor
             item.getEnvironmentTempWeight(),
             item.getEnvironmentHumidityWeight(),
             item.getEnvironmentParticleWeight(),
+            item.getUnresolvedEnvironmentEventCount(),
             policy
         );
         BigDecimal materialShielding = quantitativeScoreCalculator.resolveMaterialShielding(
-            item.getDefectiveWorkersSameLot(),
-            item.getTotalWorkersSameLot(),
+            item.getFailedLotCount(),
+            item.getTotalLotCount(),
+            item.getPeerLotFailRate(),
             item.getLotDefectThreshold(),
             item.getPeriodType(),
             policy
@@ -93,14 +100,14 @@ public class QuantitativeEvaluationProcessor
             nAge,
             etaAge,
             etaMaint,
-            nEnv,
-            materialShielding,
             policy
         );
         BigDecimal currentEquipmentIdx = eIdx;
-        BigDecimal adjustedBaselineError = quantitativeScoreCalculator.calculateAdjustedBaselineError(
+        BigDecimal adjustedBaselineError = quantitativeScoreCalculator.calculateEnvironmentAdjustedBaselineError(
             resolvedBaselineError,
-            eIdx
+            eIdx,
+            nEnv,
+            policy
         );
         BigDecimal effectiveActualError = quantitativeScoreCalculator.calculateEffectiveActualError(
             resolvedActualError,
@@ -120,22 +127,12 @@ public class QuantitativeEvaluationProcessor
             bonusPoint,
             qBase
         );
-        BigDecimal environmentCorrection = quantitativeScoreCalculator.resolveMonthlyCorrection(
-            item.getEnvironmentCorrection(),
-            item.getPeriodType()
-        );
-        BigDecimal materialCorrection = quantitativeScoreCalculator.resolveMonthlyCorrection(
-            item.getMaterialCorrection(),
-            item.getPeriodType()
-        );
         BigDecimal antiGamingPenalty = quantitativeScoreCalculator.resolveMonthlyPenalty(
             item.getAntiGamingPenalty(),
             item.getPeriodType()
         );
         BigDecimal sQuant = quantitativeScoreCalculator.calculateFinalSQuant(
             provisionalSQuant,
-            environmentCorrection,
-            materialCorrection,
             antiGamingPenalty,
             item.getPeriodType()
         );
@@ -167,8 +164,6 @@ public class QuantitativeEvaluationProcessor
             .currentEquipmentGrade(currentEquipmentGrade)
             .bonusPoint(bonusPoint)
             .provisionalSQuant(provisionalSQuant)
-            .environmentCorrection(environmentCorrection)
-            .materialCorrection(materialCorrection)
             .antiGamingPenalty(antiGamingPenalty)
             .sQuant(sQuant)
             .tScore(tScore)

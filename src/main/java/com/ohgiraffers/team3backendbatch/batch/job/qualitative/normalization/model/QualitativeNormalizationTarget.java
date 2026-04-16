@@ -9,5 +9,6 @@ import lombok.Getter;
 public class QualitativeNormalizationTarget {
 
     private final Long evaluationId;
+    private final Long evaluatorId;
     private final BigDecimal rawScore;
 }

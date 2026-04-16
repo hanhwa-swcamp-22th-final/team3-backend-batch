@@ -57,6 +57,11 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
         this.periodType = parsePeriodType(periodType);
     }
 
+    /**
+     * 정량 평가 원천 데이터를 한 건씩 반환한다.
+     * @param 없음
+     * @return 정량 평가 집계 데이터
+     */
     @Override
     public QuantitativeEvaluationAggregate read() {
         if (iterator == null) {
@@ -93,6 +98,11 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
         return iterator.next();
     }
 
+    /**
+     * 정량 평가 대상 평가 기간 ID 를 결정한다.
+     * @param 없음
+     * @return 평가 기간 ID
+     */
     private Long resolveEvaluationPeriodId() {
         if (evaluationPeriodId != null) {
             return evaluationPeriodId;
@@ -103,6 +113,11 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             .orElse(null);
     }
 
+    /**
+     * 월간 평가 대상의 그룹 통계를 보강한다.
+     * @param rawItems 정량 평가 집계 원본 목록
+     * @return 그룹 통계가 반영된 정량 평가 집계 목록
+     */
     private List<QuantitativeEvaluationAggregate> enrichMonthlyGroupStatistics(List<QuantitativeEvaluationAggregate> rawItems) {
         if (periodType != BatchPeriodType.MONTH || rawItems.isEmpty()) {
             return rawItems;
@@ -124,6 +139,11 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             .toList();
     }
 
+    /**
+     * 그룹 통계 계산용 미리보기 집계 결과를 생성한다.
+     * @param item 정량 평가 집계 데이터
+     * @return 계산 완료된 정량 평가 집계 데이터
+     */
     private QuantitativeEvaluationAggregate previewAggregate(QuantitativeEvaluationAggregate item) {
         try {
             return quantitativeEvaluationProcessor.process(item);
@@ -136,6 +156,11 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
         }
     }
 
+    /**
+     * 동일 그룹의 평균과 표준편차를 계산한다.
+     * @param items 동일 그룹 정량 평가 집계 목록
+     * @return 그룹 통계 값
+     */
     private GroupStats calculateGroupStats(List<QuantitativeEvaluationAggregate> items) {
         List<BigDecimal> scores = items.stream()
             .map(QuantitativeEvaluationAggregate::getSQuant)
@@ -166,6 +191,12 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
         return new GroupStats(mean, stdDev);
     }
 
+    /**
+     * 계산된 그룹 통계를 집계 데이터에 반영한다.
+     * @param item 정량 평가 집계 데이터
+     * @param groupStats 반영할 그룹 통계
+     * @return 그룹 통계가 반영된 정량 평가 집계 데이터
+     */
     private QuantitativeEvaluationAggregate applyGroupStats(
         QuantitativeEvaluationAggregate item,
         GroupStats groupStats
@@ -179,12 +210,22 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             .build();
     }
 
+    /**
+     * 그룹 통계 계산용 그룹 키를 생성한다.
+     * @param item 정량 평가 집계 데이터
+     * @return 그룹 키
+     */
     private String resolveGroupKey(QuantitativeEvaluationAggregate item) {
         return item.getCurrentSkillTier() == null || item.getCurrentSkillTier().isBlank()
             ? "UNKNOWN"
             : item.getCurrentSkillTier().trim().toUpperCase();
     }
 
+    /**
+     * 조회 row 를 정량 평가 집계 객체로 변환한다.
+     * @param row 정량 평가 원천 조회 row
+     * @return 정량 평가 집계 객체
+     */
     private QuantitativeEvaluationAggregate toAggregate(QuantitativeEvaluationSourceRow row) {
         return QuantitativeEvaluationAggregate.builder()
             .quantitativeEvaluationId(row.getQuantitativeEvaluationId())
@@ -222,16 +263,16 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             .environmentTempWeight(row.getEnvironmentTempWeight())
             .environmentHumidityWeight(row.getEnvironmentHumidityWeight())
             .environmentParticleWeight(row.getEnvironmentParticleWeight())
-            .defectiveWorkersSameLot(row.getDefectiveWorkersSameLot())
-            .totalWorkersSameLot(row.getTotalWorkersSameLot())
+            .unresolvedEnvironmentEventCount(row.getUnresolvedEnvironmentEventCount())
+            .failedLotCount(row.getFailedLotCount())
+            .totalLotCount(row.getTotalLotCount())
+            .peerLotFailRate(row.getPeerLotFailRate())
             .lotDefectThreshold(row.getLotDefectThreshold())
             .difficultyScore(row.getDifficultyScore())
             .difficultyGrade(row.getDifficultyGrade())
             .currentSkillTier(row.getCurrentSkillTier())
             .errorReferenceRate(row.getErrorReferenceRate())
             .baselineError(row.getBaselineError())
-            .environmentCorrection(row.getEnvironmentCorrection())
-            .materialCorrection(row.getMaterialCorrection())
             .antiGamingPenalty(row.getAntiGamingPenalty())
             .groupMean(row.getGroupMean())
             .groupStdDev(row.getGroupStdDev())
@@ -239,6 +280,11 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
             .build();
     }
 
+    /**
+     * 문자열 periodType 값을 배치 enum 으로 변환한다.
+     * @param value 요청된 periodType 문자열
+     * @return 배치 평가 기간 유형
+     */
     private BatchPeriodType parsePeriodType(String value) {
         if (value == null || value.isBlank()) {
             return BatchPeriodType.MONTH;
@@ -246,6 +292,11 @@ public class QuantitativeSourceReader implements ItemReader<QuantitativeEvaluati
         return BatchPeriodType.valueOf(value.trim().toUpperCase());
     }
 
+    /**
+     * 소수점 둘째 자리로 값을 보정한다.
+     * @param value 보정할 수치 값
+     * @return 보정된 수치 값
+     */
     private BigDecimal scale(BigDecimal value) {
         return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
     }

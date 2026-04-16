@@ -28,6 +28,11 @@ public class QualitativePeriodSummaryJobConfig {
     private final QualitativePeriodSummaryProcessor qualitativePeriodSummaryProcessor;
     private final QualitativePeriodSummaryWriter qualitativePeriodSummaryWriter;
 
+    /**
+     * 정성 기간 요약 배치 Job 을 생성한다.
+     * @param 없음
+     * @return 정성 기간 요약 Job 객체
+     */
     @Bean(name = BatchJobNames.QUALITATIVE_PERIOD_SUMMARY_JOB)
     public Job qualitativePeriodSummaryJob() {
         return new JobBuilder(BatchJobNames.QUALITATIVE_PERIOD_SUMMARY_JOB, jobRepository)
@@ -36,6 +41,11 @@ public class QualitativePeriodSummaryJobConfig {
             .build();
     }
 
+    /**
+     * 정성 기간 요약 Step 을 생성한다.
+     * @param 없음
+     * @return 정성 기간 요약 Step 객체
+     */
     @Bean
     public Step qualitativePeriodSummaryStep() {
         return new StepBuilder("qualitativePeriodSummaryStep", jobRepository)

@@ -30,6 +30,11 @@ public class QualitativeAnalysisWriter implements ItemWriter<QualitativeAnalysis
     private final QualitativeAnalysisEventPublisher qualitativeAnalysisEventPublisher;
     private final QualitativeScoreProjectionRepository qualitativeScoreProjectionRepository;
 
+    /**
+     * 정성 평가 분석 결과를 projection 에 반영하고 이벤트를 발행한다.
+     * @param chunk 처리할 정성 평가 분석 결과 묶음
+     * @return 반환값 없음
+     */
     @Override
     public void write(Chunk<? extends QualitativeAnalysisResult> chunk) {
         if (chunk == null || chunk.isEmpty()) {
@@ -42,6 +47,11 @@ public class QualitativeAnalysisWriter implements ItemWriter<QualitativeAnalysis
         log.info("Completed qualitative analysis, updated projection, and queued analyzed events. itemCount={}", chunk.size());
     }
 
+    /**
+     * 정성 평가 분석 결과를 projection 테이블에 반영한다.
+     * @param results 정성 평가 분석 결과 목록
+     * @return 반환값 없음
+     */
     private void updateProjection(List<? extends QualitativeAnalysisResult> results) {
         List<Long> evaluationIds = results.stream()
             .map(QualitativeAnalysisResult::getEvaluationId)
@@ -67,6 +77,11 @@ public class QualitativeAnalysisWriter implements ItemWriter<QualitativeAnalysis
         qualitativeScoreProjectionRepository.saveAll(projections);
     }
 
+    /**
+     * 트랜잭션 커밋 이후 정성 평가 분석 이벤트를 발행한다.
+     * @param results 발행할 정성 평가 분석 결과 목록
+     * @return 반환값 없음
+     */
     private void publishAnalyzedEventsAfterCommit(List<? extends QualitativeAnalysisResult> results) {
         Runnable publishAction = () -> results.forEach(result ->
             qualitativeAnalysisEventPublisher.publishAnalyzed(
@@ -96,6 +111,11 @@ public class QualitativeAnalysisWriter implements ItemWriter<QualitativeAnalysis
         publishAction.run();
     }
 
+    /**
+     * 문장 단위 분석 결과를 이벤트 payload 목록으로 변환한다.
+     * @param result 정성 평가 분석 결과
+     * @return 문장 단위 분석 이벤트 목록
+     */
     private List<QualitativeSentenceAnalysisEvent> toSentenceAnalysisEvents(QualitativeAnalysisResult result) {
         if (result.getSentenceAnalyses() == null || result.getSentenceAnalyses().isEmpty()) {
             return List.of();

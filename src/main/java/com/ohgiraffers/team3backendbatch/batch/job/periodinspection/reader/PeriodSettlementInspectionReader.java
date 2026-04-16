@@ -50,6 +50,11 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
     private Iterator<PeriodSettlementInspectionTarget> iterator = Collections.emptyIterator();
     private boolean initialized;
 
+    /**
+     * 상위 기간 정산 점검 대상 데이터를 한 건씩 반환한다.
+     * @param 없음
+     * @return 상위 기간 정산 점검 대상 데이터
+     */
     @Override
     public PeriodSettlementInspectionTarget read() {
         if (!initialized) {
@@ -59,6 +64,11 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
         return iterator.hasNext() ? iterator.next() : null;
     }
 
+    /**
+     * 상위 기간 정산 점검 대상 목록을 조회한다.
+     * @param 없음
+     * @return 상위 기간 정산 점검 대상 목록
+     */
     private List<PeriodSettlementInspectionTarget> loadItems() {
         BatchPeriodType periodType = parsePeriodType(requestedPeriodType);
         if (!isUpperPeriod(periodType)) {
@@ -105,6 +115,17 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
         return items;
     }
 
+    /**
+     * 직원별 정산 점검 대상 객체를 생성한다.
+     * @param evaluationPeriodId 평가 기간 ID
+     * @param periodType 평가 기간 유형
+     * @param employee 직원 projection 정보
+     * @param expectedMonthCount 기대 월 수
+     * @param quantitativeStats 정량 점수 통계
+     * @param qualitativeStats 정성 점수 통계
+     * @param performancePointTotals 성과 포인트 합계
+     * @return 상위 기간 정산 점검 대상 객체
+     */
     private PeriodSettlementInspectionTarget toTarget(
         Long evaluationPeriodId,
         BatchPeriodType periodType,
@@ -134,6 +155,12 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
             .build();
     }
 
+    /**
+     * 월간 정량 점수 통계를 생성한다.
+     * @param startDate 조회 시작일
+     * @param endDate 조회 종료일
+     * @return 직원별 정량 점수 통계
+     */
     private Map<Long, ScoreStats> buildQuantitativeStats(LocalDate startDate, LocalDate endDate) {
         Map<Long, ScoreStatsAccumulator> accumulators = new LinkedHashMap<>();
         for (MonthlyQuantitativeInspectionRow row
@@ -146,6 +173,12 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
         return finish(accumulators);
     }
 
+    /**
+     * 월간 정성 점수 통계를 생성한다.
+     * @param startDate 조회 시작일
+     * @param endDate 조회 종료일
+     * @return 직원별 정성 점수 통계
+     */
     private Map<Long, ScoreStats> buildQualitativeStats(LocalDate startDate, LocalDate endDate) {
         Map<Long, ScoreStatsAccumulator> accumulators = new LinkedHashMap<>();
         for (MonthlyQualitativeInspectionRow row
@@ -158,12 +191,22 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
         return finish(accumulators);
     }
 
+    /**
+     * 누적 통계 값을 최종 통계 값으로 변환한다.
+     * @param accumulators 직원별 누적 통계 맵
+     * @return 직원별 최종 점수 통계
+     */
     private Map<Long, ScoreStats> finish(Map<Long, ScoreStatsAccumulator> accumulators) {
         Map<Long, ScoreStats> result = new LinkedHashMap<>();
         accumulators.forEach((employeeId, accumulator) -> result.put(employeeId, accumulator.finish()));
         return result;
     }
 
+    /**
+     * 점검 대상 평가 기간을 조회한다.
+     * @param periodType 평가 기간 유형
+     * @return 평가 기간 조회 결과
+     */
     private java.util.Optional<EvaluationPeriodProjectionRow> resolveTargetPeriod(BatchPeriodType periodType) {
         if (requestedEvaluationPeriodId != null) {
             return evaluationPeriodProjectionRepository.findById(requestedEvaluationPeriodId).map(this::toPeriodRow);
@@ -171,6 +214,11 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
         return evaluationPeriodQueryMapper.findLatestConfirmedPeriod(periodType);
     }
 
+    /**
+     * 문자열 periodType 값을 배치 enum 으로 변환한다.
+     * @param value 요청된 periodType 문자열
+     * @return 배치 평가 기간 유형
+     */
     private BatchPeriodType parsePeriodType(String value) {
         if (value == null || value.isBlank()) {
             return BatchPeriodType.QUARTER;
@@ -178,12 +226,22 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
         return BatchPeriodType.valueOf(value.trim().toUpperCase());
     }
 
+    /**
+     * 상위 기간 점검 대상인지 확인한다.
+     * @param value 평가 기간 유형
+     * @return 상위 기간 여부
+     */
     private boolean isUpperPeriod(BatchPeriodType value) {
         return value == BatchPeriodType.QUARTER
             || value == BatchPeriodType.HALF_YEAR
             || value == BatchPeriodType.YEAR;
     }
 
+    /**
+     * 배치 처리 대상 직원인지 확인한다.
+     * @param employee 직원 projection 정보
+     * @return 처리 대상 여부
+     */
     private boolean isEligibleEmployee(EmployeeProjectionEntity employee) {
         if (employee.getEmployeeId() == null) {
             return false;
@@ -191,10 +249,20 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
         return employee.getEmployeeStatus() == null || !"INACTIVE".equalsIgnoreCase(employee.getEmployeeStatus());
     }
 
+    /**
+     * null 점수를 0으로 치환한다.
+     * @param value 점수 값
+     * @return 보정된 점수 값
+     */
     private BigDecimal safe(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
     }
 
+    /**
+     * 평가 기간 projection entity 를 mapper row 형태로 변환한다.
+     * @param entity 평가 기간 projection entity
+     * @return mapper 조회용 평가 기간 row
+     */
     private EvaluationPeriodProjectionRow toPeriodRow(EvaluationPeriodProjectionEntity entity) {
         EvaluationPeriodProjectionRow row = new EvaluationPeriodProjectionRow();
         row.setEvaluationPeriodId(entity.getEvaluationPeriodId());
@@ -221,6 +289,11 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
         private BigDecimal min;
         private BigDecimal max;
 
+        /**
+         * 점수를 누적 통계에 반영한다.
+         * @param score 누적할 점수
+         * @return 반환값 없음
+         */
         private void add(BigDecimal score) {
             if (score == null) {
                 return;
@@ -230,6 +303,11 @@ public class PeriodSettlementInspectionReader implements ItemReader<PeriodSettle
             max = max == null || score.compareTo(max) > 0 ? score : max;
         }
 
+        /**
+         * 누적된 점수 통계를 완료한다.
+         * @param 없음
+         * @return 최종 점수 통계
+         */
         private ScoreStats finish() {
             return new ScoreStats(count, min, max);
         }

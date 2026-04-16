@@ -14,6 +14,10 @@ public interface QualitativeScoreQueryMapper {
         @Param("evaluationPeriodId") Long evaluationPeriodId
     );
 
+    List<QualitativeEvaluatorStatisticsRow> findEvaluatorNormalizationStatistics(
+        @Param("evaluationPeriodId") Long evaluationPeriodId
+    );
+
     List<MonthlyQualitativeScoreRow> findLatestNormalizedScoresByEvaluationPeriodId(
         @Param("evaluationPeriodId") Long evaluationPeriodId
     );
