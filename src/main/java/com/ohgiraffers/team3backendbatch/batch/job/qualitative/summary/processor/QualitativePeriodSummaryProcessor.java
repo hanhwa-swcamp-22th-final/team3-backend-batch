@@ -14,6 +14,11 @@ public class QualitativePeriodSummaryProcessor
 
     private final QualitativeScoreCalculator qualitativeScoreCalculator;
 
+    /**
+     * 정성 요약 대상 데이터를 요약 결과로 변환한다.
+     * @param item 정성 요약 대상 데이터
+     * @return 정성 기간 요약 결과
+     */
     @Override
     public QualitativePeriodSummaryResult process(QualitativePeriodSummaryTarget item) {
         String grade = qualitativeScoreCalculator.classifyTier(item.getAverageNormalizedScore());

@@ -28,6 +28,12 @@ public class QualitativeCommentAnalyzer {
     private final QualitativeKeywordScorer qualitativeKeywordScorer;
     private final QualitativeScoreCalculator qualitativeScoreCalculator;
 
+    /**
+     * 코멘트를 분석해 정성 점수 계산용 결과를 생성한다.
+     * @param commentText 분석할 정성 평가 코멘트
+     * @param keywordRules 코멘트에 적용할 키워드 규칙 목록
+     * @return 코멘트 분석 및 점수 계산 결과
+     */
     public QualitativeCommentAnalysis analyze(String commentText, List<QualitativeKeywordRule> keywordRules) {
         List<Chunk> chunks = qualitativeChunkSplitter.splitIntoChunks(commentText);
         List<ChunkContribution> contributions = new ArrayList<>();

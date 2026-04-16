@@ -5,6 +5,7 @@ import com.ohgiraffers.team3backendbatch.batch.common.support.BatchJobNames;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.model.QuantitativeEvaluationAggregate;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.processor.QuantitativeEvaluationProcessor;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.reader.QuantitativeSourceReader;
+import com.ohgiraffers.team3backendbatch.batch.job.quantitative.tasklet.AntiGamingFlagRefreshTasklet;
 import com.ohgiraffers.team3backendbatch.batch.job.quantitative.writer.QuantitativeEvaluationWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
@@ -36,18 +37,42 @@ public class QuantitativeEvaluationJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
     private final BatchJobLoggingListener batchJobLoggingListener;
+    private final AntiGamingFlagRefreshTasklet antiGamingFlagRefreshTasklet;
     private final QuantitativeSourceReader quantitativeSourceReader;
     private final QuantitativeEvaluationProcessor quantitativeEvaluationProcessor;
     private final QuantitativeEvaluationWriter quantitativeEvaluationWriter;
 
+    /**
+     * 정량 평가 배치 Job 을 등록한다.
+     * @param 없음
+     * @return 정량 평가 Job
+     */
     @Bean(name = BatchJobNames.QUANTITATIVE_EVALUATION_JOB)
     public Job quantitativeEvaluationJob() {
         return new JobBuilder(BatchJobNames.QUANTITATIVE_EVALUATION_JOB, jobRepository)
             .listener(batchJobLoggingListener)
-            .start(quantitativeEvaluationStep())
+            .start(antiGamingFlagRefreshStep())
+            .next(quantitativeEvaluationStep())
             .build();
     }
 
+    /**
+     * anti-gaming flag 갱신 Step 을 등록한다.
+     * @param 없음
+     * @return anti-gaming flag 갱신 Step
+     */
+    @Bean
+    public Step antiGamingFlagRefreshStep() {
+        return new StepBuilder("antiGamingFlagRefreshStep", jobRepository)
+            .tasklet(antiGamingFlagRefreshTasklet, transactionManager)
+            .build();
+    }
+
+    /**
+     * 정량 평가 Step 을 등록한다.
+     * @param 없음
+     * @return 정량 평가 Step
+     */
     @Bean
     public Step quantitativeEvaluationStep() {
         return new StepBuilder("quantitativeEvaluationStep", jobRepository)

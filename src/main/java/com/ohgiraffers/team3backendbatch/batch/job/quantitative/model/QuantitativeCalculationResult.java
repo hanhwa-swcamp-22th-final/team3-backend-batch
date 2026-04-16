@@ -29,8 +29,6 @@ public class QuantitativeCalculationResult {
     private final String currentEquipmentGrade;
     private final BigDecimal bonusPoint;
     private final BigDecimal provisionalSQuant;
-    private final BigDecimal environmentCorrection;
-    private final BigDecimal materialCorrection;
     private final BigDecimal antiGamingPenalty;
     private final BigDecimal sQuant;
     private final BigDecimal tScore;

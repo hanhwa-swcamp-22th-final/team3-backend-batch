@@ -52,8 +52,13 @@ class QuantitativeScoreCalculatorTest {
         BigDecimal difficultyAdjustment = calculator.calculateDifficultyAdjustment(null, "D3");
         BigDecimal baselineError = calculator.calculateBaselineError(null, BigDecimal.valueOf(5), nAge);
         BigDecimal qBase = calculator.calculateQBase(uphScore, yieldScore, leadTimeScore);
-        BigDecimal eIdx = calculator.calculateEIdx("B", nAge, etaAge, etaMaint, nEnv, materialShielding);
-        BigDecimal adjustedBaselineError = calculator.calculateAdjustedBaselineError(baselineError, eIdx);
+        BigDecimal eIdx = calculator.calculateEIdx("B", nAge, etaAge, etaMaint);
+        BigDecimal adjustedBaselineError = calculator.calculateEnvironmentAdjustedBaselineError(
+            baselineError,
+            eIdx,
+            nEnv,
+            calculator.resolvePolicy(null)
+        );
         BigDecimal bonusPoint = calculator.calculateBonusPoint(null, "D4", "B");
         BigDecimal effectiveActualError = calculator.calculateEffectiveActualError(actualError, materialShielding);
         BigDecimal provisionalSQuant = calculator.calculateProvisionalSQuantFromErrorRate(
@@ -65,8 +70,6 @@ class QuantitativeScoreCalculatorTest {
         );
         BigDecimal finalSQuant = calculator.calculateFinalSQuant(
             provisionalSQuant,
-            BigDecimal.valueOf(3),
-            BigDecimal.valueOf(2),
             BigDecimal.ONE,
             BatchPeriodType.MONTH
         );
@@ -82,13 +85,13 @@ class QuantitativeScoreCalculatorTest {
         assertThat(baselineError).isEqualByComparingTo("5.00");
         assertThat(qBase).isEqualByComparingTo("100.00");
         assertThat(eIdx).isEqualByComparingTo("1.00");
-        assertThat(adjustedBaselineError).isEqualByComparingTo("5.00");
+        assertThat(adjustedBaselineError).isEqualByComparingTo("5.03");
         assertThat(bonusPoint).isEqualByComparingTo("5.00");
         assertThat(effectiveActualError).isEqualByComparingTo("2.80");
-        assertThat(provisionalSQuant).isEqualByComparingTo("51.20");
-        assertThat(finalSQuant).isEqualByComparingTo("55.20");
+        assertThat(provisionalSQuant).isEqualByComparingTo("51.55");
+        assertThat(finalSQuant).isEqualByComparingTo("50.55");
         assertThat(calculator.calculateTScore(finalSQuant, BigDecimal.valueOf(80), BigDecimal.valueOf(10), BatchPeriodType.MONTH))
-            .isEqualByComparingTo("25.20");
+            .isEqualByComparingTo("20.55");
         assertThat(calculator.resolveStatus(BatchPeriodType.MONTH)).isEqualTo("CONFIRMED");
     }
 
@@ -108,8 +111,6 @@ class QuantitativeScoreCalculatorTest {
         );
         BigDecimal finalSQuant = calculator.calculateFinalSQuant(
             provisionalSQuant,
-            BigDecimal.valueOf(5),
-            BigDecimal.valueOf(3),
             BigDecimal.valueOf(2),
             BatchPeriodType.WEEK
         );
@@ -145,7 +146,7 @@ class QuantitativeScoreCalculatorTest {
             null,
             null
         );
-        BigDecimal eIdx = calculator.calculateEIdx("B", nAge, etaAge, etaMaint, nEnv, BigDecimal.ZERO);
+        BigDecimal eIdx = calculator.calculateEIdx("B", nAge, etaAge, etaMaint);
 
         assertThat(nAge).isEqualByComparingTo("0.13");
         assertThat(etaAge).isEqualByComparingTo("0.97");
@@ -157,9 +158,11 @@ class QuantitativeScoreCalculatorTest {
 
     @Test
     void shouldCalculateSQuantFromAdjustedBaselineAndBonusPoint() {
-        BigDecimal adjustedBaselineError = calculator.calculateAdjustedBaselineError(
+        BigDecimal adjustedBaselineError = calculator.calculateEnvironmentAdjustedBaselineError(
             calculator.calculateBaselineError(null, BigDecimal.valueOf(4.5), BigDecimal.valueOf(0.25)),
-            BigDecimal.valueOf(1.05)
+            BigDecimal.valueOf(1.05),
+            BigDecimal.ZERO,
+            calculator.resolvePolicy(null)
         );
         BigDecimal bonusPoint = calculator.calculateBonusPoint(null, "D4", "B");
         BigDecimal effectiveActualError = calculator.calculateEffectiveActualError(BigDecimal.valueOf(3.6), BigDecimal.ZERO);
@@ -171,8 +174,6 @@ class QuantitativeScoreCalculatorTest {
                 bonusPoint,
                 BigDecimal.ZERO
             ),
-            BigDecimal.ZERO,
-            BigDecimal.ZERO,
             BigDecimal.ZERO,
             BatchPeriodType.MONTH
         );
@@ -199,4 +200,65 @@ class QuantitativeScoreCalculatorTest {
         assertThat(withoutShielding).isEqualByComparingTo("3.60");
         assertThat(withShielding).isEqualByComparingTo("2.52");
     }
+
+    @Test
+    void shouldApplyEnvironmentCorrectionOnlyWhenUnresolvedDeviationExists() {
+        BigDecimal skipped = calculator.resolveNEnv(
+            BigDecimal.valueOf(28),
+            BigDecimal.valueOf(20),
+            BigDecimal.valueOf(26),
+            BigDecimal.valueOf(55),
+            BigDecimal.valueOf(40),
+            BigDecimal.valueOf(60),
+            BigDecimal.valueOf(90),
+            BigDecimal.valueOf(100),
+            null,
+            null,
+            null,
+            0,
+            calculator.resolvePolicy(null)
+        );
+        BigDecimal applied = calculator.resolveNEnv(
+            BigDecimal.valueOf(28),
+            BigDecimal.valueOf(20),
+            BigDecimal.valueOf(26),
+            BigDecimal.valueOf(55),
+            BigDecimal.valueOf(40),
+            BigDecimal.valueOf(60),
+            BigDecimal.valueOf(90),
+            BigDecimal.valueOf(100),
+            null,
+            null,
+            null,
+            2,
+            calculator.resolvePolicy(null)
+        );
+
+        assertThat(skipped).isEqualByComparingTo("0.00");
+        assertThat(applied).isEqualByComparingTo("0.13");
+    }
+
+    @Test
+    void shouldApplyMaterialShieldingOnlyWhenOwnLotFailRateExceedsPeerRate() {
+        BigDecimal applied = calculator.resolveMaterialShielding(
+            4,
+            5,
+            BigDecimal.valueOf(0.30),
+            null,
+            BatchPeriodType.MONTH,
+            calculator.resolvePolicy(null)
+        );
+        BigDecimal skipped = calculator.resolveMaterialShielding(
+            3,
+            5,
+            BigDecimal.valueOf(0.80),
+            null,
+            BatchPeriodType.MONTH,
+            calculator.resolvePolicy(null)
+        );
+
+        assertThat(applied).isEqualByComparingTo("1.00");
+        assertThat(skipped).isEqualByComparingTo("0.00");
+    }
+
 }

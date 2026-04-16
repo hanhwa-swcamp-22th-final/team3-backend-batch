@@ -25,6 +25,19 @@
           AND q.raw_score IS NOT NULL
     </select>
 
+    <select id="findEvaluatorNormalizationStatistics"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.QualitativeEvaluatorStatisticsRow">
+        SELECT
+            q.evaluator_id AS evaluatorId,
+            COUNT(q.raw_score) AS sampleCount,
+            COALESCE(AVG(q.raw_score), 0) AS meanScore
+        FROM batch_projection.qualitative_score_projection q
+        WHERE q.evaluation_period_id = #{evaluationPeriodId}
+          AND q.raw_score IS NOT NULL
+          AND q.evaluator_id IS NOT NULL
+        GROUP BY q.evaluator_id
+    </select>
+
     <select id="findLatestNormalizedScoresByEvaluationPeriodId"
             resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.qualitative.mapper.MonthlyQualitativeScoreRow">
         SELECT

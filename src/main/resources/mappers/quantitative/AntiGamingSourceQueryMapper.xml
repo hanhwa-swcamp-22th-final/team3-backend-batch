@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.AntiGamingSourceQueryMapper">
+
+    <select id="findProductionSpeedScoresByEvaluationPeriodId"
+            resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.AntiGamingProductionScoreRow">
+        WITH target_period AS (
+            SELECT
+                evaluation_period_id AS evaluationPeriodId,
+                start_date AS startDate,
+                end_date AS endDate
+            FROM batch_projection.evaluation_period_projection
+            WHERE evaluation_period_id = #{evaluationPeriodId}
+        ),
+        deployment_scope AS (
+            SELECT DISTINCT
+                wdp.employee_id AS employeeId,
+                wdp.equipment_id AS equipmentId
+            FROM batch_projection.worker_deployment_projection wdp
+            JOIN target_period tp
+              ON wdp.start_date &lt;= tp.endDate
+             AND (wdp.end_date IS NULL OR wdp.end_date &gt;= tp.startDate)
+            WHERE wdp.worker_deployment_role = 'PRIMARY'
+        ),
+        production_scope AS (
+            SELECT
+                ds.employeeId AS employeeId,
+                CASE
+                    WHEN COALESCE(mpr.lead_time_sec, 0) &gt; 0
+                        THEN 3600 / mpr.lead_time_sec
+                    ELSE NULL
+                END AS productionSpeedScore
+            FROM deployment_scope ds
+            JOIN batch_projection.mes_production_result_projection mpr
+              ON mpr.equipment_id = ds.equipmentId
+            JOIN target_period tp
+              ON DATE(mpr.start_time) BETWEEN tp.startDate AND tp.endDate
+            WHERE COALESCE(mpr.input_qty, 0) &gt; 0
+        )
+        SELECT
+            employeeId,
+            AVG(productionSpeedScore) AS productionSpeedScore
+        FROM production_scope
+        GROUP BY employeeId
+        ORDER BY productionSpeedScore DESC, employeeId ASC
+    </select>
+</mapper>

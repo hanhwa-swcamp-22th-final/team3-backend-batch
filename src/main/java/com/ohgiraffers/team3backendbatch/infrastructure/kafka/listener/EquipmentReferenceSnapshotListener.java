@@ -22,9 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class EquipmentReferenceSnapshotListener {
 
     private static final Logger log = LoggerFactory.getLogger(EquipmentReferenceSnapshotListener.class);
-    private static final BigDecimal NO_ENVIRONMENT_DEVIATION = BigDecimal.ZERO;
-    private static final BigDecimal NO_MATERIAL_SHIELDING = BigDecimal.ZERO;
-
     private final EquipmentReferenceProjectionRepository repository;
     private final QuantitativeScoreCalculator quantitativeScoreCalculator;
     private final QuantitativeEvaluationEventPublisher quantitativeEvaluationEventPublisher;
@@ -130,9 +127,7 @@ public class EquipmentReferenceSnapshotListener {
             currentEquipmentGrade,
             nAge,
             etaAge,
-            etaMaint,
-            NO_ENVIRONMENT_DEVIATION,
-            NO_MATERIAL_SHIELDING
+            etaMaint
         );
 
         if (isSameBigDecimal(event.getEquipmentIdx(), currentEquipmentIdx)

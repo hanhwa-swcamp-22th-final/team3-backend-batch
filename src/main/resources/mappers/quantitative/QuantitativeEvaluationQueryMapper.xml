@@ -80,16 +80,33 @@
               AND TRIM(mqr.input_lot_no) &lt;&gt; ''
             GROUP BY mqr.equipment_id, mqr.input_lot_no
         ),
-        lot_defect_agg AS (
+        employee_lot_quality_agg AS (
             SELECT
                 pls.employeeId AS employeeId,
-                SUM(CASE WHEN COALESCE(qlr.hasFailedLot, 0) = 1 THEN 1 ELSE 0 END) AS defectiveWorkersSameLot,
-                COUNT(*) AS totalWorkersSameLot
+                pls.equipmentId AS equipmentId,
+                SUM(CASE WHEN COALESCE(qlr.hasFailedLot, 0) = 1 THEN 1 ELSE 0 END) AS failedLotCount,
+                COUNT(*) AS totalLotCount
             FROM production_lot_scope pls
             LEFT JOIN quality_lot_result qlr
               ON qlr.equipmentId = pls.equipmentId
              AND qlr.inputLotNo = pls.inputLotNo
-            GROUP BY pls.employeeId
+            GROUP BY pls.employeeId, pls.equipmentId
+        ),
+        equipment_lot_scope AS (
+            SELECT DISTINCT
+                pls.equipmentId AS equipmentId,
+                pls.inputLotNo AS inputLotNo
+            FROM production_lot_scope pls
+        ),
+        equipment_lot_quality_agg AS (
+            SELECT
+                els.equipmentId AS equipmentId,
+                AVG(COALESCE(qlr.hasFailedLot, 0)) AS peerLotFailRate
+            FROM equipment_lot_scope els
+            LEFT JOIN quality_lot_result qlr
+              ON qlr.equipmentId = els.equipmentId
+             AND qlr.inputLotNo = els.inputLotNo
+            GROUP BY els.equipmentId
         ),
         status_agg AS (
             SELECT
@@ -133,9 +150,27 @@
         environment_agg AS (
             SELECT
                 ee.equipment_id AS equipmentId,
-                AVG(ee.env_temperature) AS environmentTemperature,
-                AVG(ee.env_humidity) AS environmentHumidity,
-                AVG(ee.env_particle_cnt) AS environmentParticleCount
+                AVG(CASE
+                        WHEN COALESCE(ee.env_correction_applied, 0) = 0
+                         AND COALESCE(ee.env_deviation_type, 'NORMAL') &lt;&gt; 'NORMAL'
+                            THEN ee.env_temperature
+                    END) AS environmentTemperature,
+                AVG(CASE
+                        WHEN COALESCE(ee.env_correction_applied, 0) = 0
+                         AND COALESCE(ee.env_deviation_type, 'NORMAL') &lt;&gt; 'NORMAL'
+                            THEN ee.env_humidity
+                    END) AS environmentHumidity,
+                AVG(CASE
+                        WHEN COALESCE(ee.env_correction_applied, 0) = 0
+                         AND COALESCE(ee.env_deviation_type, 'NORMAL') &lt;&gt; 'NORMAL'
+                            THEN ee.env_particle_cnt
+                    END) AS environmentParticleCount,
+                SUM(CASE
+                        WHEN COALESCE(ee.env_correction_applied, 0) = 0
+                         AND COALESCE(ee.env_deviation_type, 'NORMAL') &lt;&gt; 'NORMAL'
+                            THEN 1
+                        ELSE 0
+                    END) AS unresolvedEnvironmentEventCount
             FROM batch_projection.environment_event_projection ee
             JOIN target_period tp
               ON DATE(ee.env_detected_at) BETWEEN tp.startDate AND tp.endDate
@@ -162,6 +197,7 @@
             JOIN target_period tp
               ON agf.is_active = 1
              AND (agf.target_year IS NULL OR agf.target_year = tp.evaluationYear)
+             AND (agf.target_period IS NULL OR agf.target_period = CAST(tp.evaluationPeriodId AS CHAR))
             GROUP BY agf.employee_id
         )
         SELECT
@@ -202,16 +238,16 @@
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.policyConfig, '$.environment.tempWeight')) AS DECIMAL(10, 2)) AS environmentTempWeight,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.policyConfig, '$.environment.humidityWeight')) AS DECIMAL(10, 2)) AS environmentHumidityWeight,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.policyConfig, '$.environment.particleWeight')) AS DECIMAL(10, 2)) AS environmentParticleWeight,
-            lda.defectiveWorkersSameLot AS defectiveWorkersSameLot,
-            lda.totalWorkersSameLot AS totalWorkersSameLot,
+            ea.unresolvedEnvironmentEventCount AS unresolvedEnvironmentEventCount,
+            elqa.failedLotCount AS failedLotCount,
+            elqa.totalLotCount AS totalLotCount,
+            eqa.peerLotFailRate AS peerLotFailRate,
             CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.policyConfig, '$.material.lotDefectThreshold')) AS DECIMAL(10, 2)) AS lotDefectThreshold,
             da.difficultyScore AS difficultyScore,
             da.difficultyGrade AS difficultyGrade,
             ep.employee_tier AS currentSkillTier,
             erp.equipment_baseline_error_rate AS errorReferenceRate,
             erp.equipment_baseline_error_rate AS baselineError,
-            CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.monthly.environmentCorrection')) AS DECIMAL(10, 2)) AS environmentCorrection,
-            CAST(JSON_UNQUOTE(JSON_EXTRACT(tp.parameters, '$.monthly.materialCorrection')) AS DECIMAL(10, 2)) AS materialCorrection,
             ag.antiGamingPenalty AS antiGamingPenalty,
             NULL AS groupMean,
             NULL AS groupStdDev,
@@ -239,8 +275,11 @@
          AND COALESCE(esp.deleted, 0) = 0
         LEFT JOIN difficulty_agg da
           ON da.employeeId = ds.employeeId
-        LEFT JOIN lot_defect_agg lda
-          ON lda.employeeId = ds.employeeId
+        LEFT JOIN employee_lot_quality_agg elqa
+          ON elqa.employeeId = ds.employeeId
+         AND elqa.equipmentId = ds.equipmentId
+        LEFT JOIN equipment_lot_quality_agg eqa
+          ON eqa.equipmentId = ds.equipmentId
         LEFT JOIN anti_gaming ag
           ON ag.employeeId = ds.employeeId
         WHERE COALESCE(pa.totalInputQty, 0) &gt; 0

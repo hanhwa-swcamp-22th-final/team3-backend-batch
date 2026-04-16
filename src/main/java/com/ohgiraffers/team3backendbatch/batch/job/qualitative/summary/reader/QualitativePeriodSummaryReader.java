@@ -36,6 +36,11 @@ public class QualitativePeriodSummaryReader implements ItemReader<QualitativePer
         this.periodType = parsePeriodType(periodType);
     }
 
+    /**
+     * 정성 요약 대상 데이터를 한 건씩 반환한다.
+     * @param 없음
+     * @return 정성 요약 대상 데이터
+     */
     @Override
     public QualitativePeriodSummaryTarget read() {
         if (iterator == null) {
@@ -80,6 +85,11 @@ public class QualitativePeriodSummaryReader implements ItemReader<QualitativePer
         return iterator.hasNext() ? iterator.next() : null;
     }
 
+    /**
+     * 문자열 periodType 값을 배치 enum 으로 변환한다.
+     * @param value job parameter 로 전달된 periodType 문자열
+     * @return 변환된 배치 기간 유형
+     */
     private BatchPeriodType parsePeriodType(String value) {
         if (value == null || value.isBlank()) {
             return BatchPeriodType.MONTH;
@@ -87,6 +97,11 @@ public class QualitativePeriodSummaryReader implements ItemReader<QualitativePer
         return BatchPeriodType.valueOf(value.trim().toUpperCase());
     }
 
+    /**
+     * 상위 기간 요약 대상인지 확인한다.
+     * @param value 배치 기간 유형
+     * @return 상위 기간이면 true, 아니면 false
+     */
     private boolean isUpperPeriod(BatchPeriodType value) {
         return value == BatchPeriodType.QUARTER
             || value == BatchPeriodType.HALF_YEAR

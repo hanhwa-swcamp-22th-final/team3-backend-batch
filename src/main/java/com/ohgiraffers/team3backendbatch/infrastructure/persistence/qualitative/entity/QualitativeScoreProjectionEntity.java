@@ -28,6 +28,9 @@ public class QualitativeScoreProjectionEntity {
     @Column(name = "evaluatee_id", nullable = false)
     private Long evaluateeId;
 
+    @Column(name = "evaluator_id")
+    private Long evaluatorId;
+
     @Column(name = "evaluation_level", nullable = false)
     private Long evaluationLevel;
 
@@ -74,6 +77,7 @@ public class QualitativeScoreProjectionEntity {
         Long qualitativeEvaluationId,
         Long evaluationPeriodId,
         Long evaluateeId,
+        Long evaluatorId,
         Long evaluationLevel,
         Long algorithmVersionId,
         String analysisVersion,
@@ -85,6 +89,7 @@ public class QualitativeScoreProjectionEntity {
         entity.qualitativeEvaluationId = qualitativeEvaluationId;
         entity.evaluationPeriodId = evaluationPeriodId;
         entity.evaluateeId = evaluateeId;
+        entity.evaluatorId = evaluatorId;
         entity.evaluationLevel = evaluationLevel;
         entity.algorithmVersionId = algorithmVersionId;
         entity.analysisVersion = analysisVersion;
@@ -100,6 +105,7 @@ public class QualitativeScoreProjectionEntity {
     public void refreshSubmittedSnapshot(
         Long evaluationPeriodId,
         Long evaluateeId,
+        Long evaluatorId,
         Long evaluationLevel,
         Long algorithmVersionId,
         String analysisVersion,
@@ -109,6 +115,7 @@ public class QualitativeScoreProjectionEntity {
     ) {
         this.evaluationPeriodId = evaluationPeriodId;
         this.evaluateeId = evaluateeId;
+        this.evaluatorId = evaluatorId;
         this.evaluationLevel = evaluationLevel;
         this.algorithmVersionId = algorithmVersionId;
         this.analysisVersion = analysisVersion;

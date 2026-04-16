@@ -21,6 +21,11 @@ public class QualitativePeriodSummaryWriter implements ItemWriter<QualitativePer
     private final QualitativePeriodSummaryProjectionRepository qualitativePeriodSummaryProjectionRepository;
     private final IdGenerator idGenerator;
 
+    /**
+     * 정성 기간 요약 결과를 projection 에 저장한다.
+     * @param chunk 정성 기간 요약 결과 청크
+     * @return 반환값 없음
+     */
     @Override
     public void write(Chunk<? extends QualitativePeriodSummaryResult> chunk) {
         LocalDateTime now = LocalDateTime.now();

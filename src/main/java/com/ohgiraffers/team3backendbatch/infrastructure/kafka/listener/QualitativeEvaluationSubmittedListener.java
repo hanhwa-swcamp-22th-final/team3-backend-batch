@@ -78,6 +78,7 @@ public class QualitativeEvaluationSubmittedListener {
                 existing.refreshSubmittedSnapshot(
                     event.getEvaluationPeriodId(),
                     event.getEvaluateeId(),
+                    event.getEvaluatorId(),
                     event.getEvaluationLevel(),
                     event.getAlgorithmVersionId(),
                     event.getAnalysisVersion(),
@@ -91,6 +92,7 @@ public class QualitativeEvaluationSubmittedListener {
                 event.getQualitativeEvaluationId(),
                 event.getEvaluationPeriodId(),
                 event.getEvaluateeId(),
+                event.getEvaluatorId(),
                 event.getEvaluationLevel(),
                 event.getAlgorithmVersionId(),
                 event.getAnalysisVersion(),

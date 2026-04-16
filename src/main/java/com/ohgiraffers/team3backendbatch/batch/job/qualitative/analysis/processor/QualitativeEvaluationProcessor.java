@@ -19,6 +19,11 @@ public class QualitativeEvaluationProcessor
     private final QualitativeCommentAnalyzer qualitativeCommentAnalyzer;
     private final QualitativeEvaluationScorePolicy qualitativeEvaluationScorePolicy;
 
+    /**
+     * 정성 평가 집계 데이터를 분석 결과로 변환한다.
+     * @param item 정성 평가 집계 원본 데이터
+     * @return 저장 가능한 정성 평가 분석 결과
+     */
     @Override
     public QualitativeAnalysisResult process(QualitativeEvaluationAggregate item) {
         if (item.getEvaluationLevel() != null && item.getEvaluationLevel() >= 3L) {
