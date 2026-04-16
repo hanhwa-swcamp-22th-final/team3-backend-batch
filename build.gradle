@@ -51,6 +51,8 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // build.gradle
+    implementation 'software.amazon.msk:aws-msk-iam-auth:2.2.0'
 }
 
 tasks.named('test') {
