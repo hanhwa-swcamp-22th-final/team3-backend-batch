@@ -13,7 +13,7 @@
             AVG(q.yield_score) AS averageQualityScore,
             AVG(q.lead_time_score) AS averageEquipmentResponseScore
         FROM quantitative_evaluation q
-        WHERE q.evaluation_period_id = #{evaluationPeriodId}
+        WHERE q.eval_period_id = #{evaluationPeriodId}
           AND q.status IN
           <foreach collection="statuses" item="status" open="(" separator="," close=")">
               #{status}
@@ -33,7 +33,7 @@
             AVG(q.lead_time_score) AS averageEquipmentResponseScore
         FROM quantitative_evaluation q
         JOIN batch_projection.evaluation_period_projection ep
-          ON ep.evaluation_period_id = q.evaluation_period_id
+          ON ep.evaluation_period_id = q.eval_period_id
         WHERE ep.status = 'CONFIRMED'
           AND DATEDIFF(ep.end_date, ep.start_date) + 1 BETWEEN 28 AND 31
           AND ep.start_date &gt;= #{startDate}
@@ -48,17 +48,17 @@
             resultType="com.ohgiraffers.team3backendbatch.infrastructure.persistence.quantitative.mapper.MonthlyQuantitativeInspectionRow">
         SELECT
             q.employee_id AS employeeId,
-            q.evaluation_period_id AS evaluationPeriodId,
+            q.eval_period_id AS evaluationPeriodId,
             q.t_score AS tScore
         FROM quantitative_evaluation q
         JOIN batch_projection.evaluation_period_projection ep
-          ON ep.evaluation_period_id = q.evaluation_period_id
+          ON ep.evaluation_period_id = q.eval_period_id
         WHERE ep.status = 'CONFIRMED'
           AND DATEDIFF(ep.end_date, ep.start_date) + 1 BETWEEN 28 AND 31
           AND ep.start_date &gt;= #{startDate}
           AND ep.end_date &lt;= #{endDate}
           AND q.status = 'CONFIRMED'
           AND q.t_score IS NOT NULL
-        ORDER BY q.employee_id, q.evaluation_period_id
+        ORDER BY q.employee_id, q.eval_period_id
     </select>
 </mapper>
